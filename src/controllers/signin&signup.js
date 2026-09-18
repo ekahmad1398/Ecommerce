@@ -56,8 +56,9 @@ export const createAccount = async (req, res, next) => {
     }
 
     const generatedOTP = crypto.randomInt(100000, 999999).toString();
+    const HashedOTP = hashingpassword(generatedOTP)
     await OTP.deleteMany({ email: cleanemail });
-    await new OTP({ email: cleanemail, OTP: generatedOTP.trim() }).save();
+    await new OTP({ email: cleanemail, OTP: HashedOTP }).save();
 
     OTPMail(cleanemail, generatedOTP);
     res.status(201).json({
@@ -79,12 +80,9 @@ export const otprequest = async (req, res, next) => {
 
     const cleanemail = email.trim().toLowerCase();
     const activeotp = await OTP.findOne({ email: cleanemail });
+    const comparignOTP = bcrypt.compare(activeotp, clientOTP)
 
     if (!activeotp) {
-      return res.status(400).json({ message: "incorrect or invalid OTP" });
-    }
-
-    if (activeotp.OTP !== clientOTP) {
       return res.status(400).json({ message: "incorrect or invalid OTP" });
     }
 
@@ -92,7 +90,7 @@ export const otprequest = async (req, res, next) => {
 
     const unlockuser = await user.findOneAndUpdate(
       { email: cleanemail },
-      { isverified: true },
+      { isEmailVerified: true },
       { returnDocument: "after" },
     );
 
@@ -103,7 +101,7 @@ export const otprequest = async (req, res, next) => {
     const accesstoken = jwtfun(
       unlockuser.id,
       unlockuser.role,
-      unlockuser.isBanned,
+      unlockuser.status,
     );
     const refreshtoken = refreshjwtfun(unlockuser.id);
 
