@@ -14,8 +14,25 @@ const fileFilter = (req, file, callback) => {
 const upload = multer({
   storage,
   fileFilter,
-  // A small limit prevents a large upload from using too much server memory.
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB each, max six
+  limits: { fileSize: 5 * 1024 * 1024 }, 
 });
 
 export default upload;
+
+
+export const uploadToCloudinary = (
+  buffer,
+) => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "photo-api",
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      },
+    );
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
+};

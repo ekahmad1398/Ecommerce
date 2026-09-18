@@ -8,7 +8,12 @@ const vendorSchema = new Schema(
     lastName: { type: String, required: true, trim: true, maxlength: 120 },
     country: { type: String, required: true, trim: true, maxlength: 120 },
     mobilenumber: { type: String, required: true, trim: true, maxlength: 20 },
-    status:{type:String, enum:["pending", "suspended", "active"], default:"pending"}
+    status: {
+      type: String,
+      enum: ["pending", "suspended", "active"],
+      default: "pending",
+      index:true
+    },
   },
   { timestamps: true },
 );

@@ -4,35 +4,54 @@ import crypto from "crypto";
 import jwtfun, { hashingpassword, refreshjwtfun } from "../utils/jwthash.js";
 import { OTPMail } from "../../config/mailtrapconfig.js";
 import bcrypt from "bcryptjs";
+import { uploadToCloudinary } from "../middleware/upload.js";
 
-
-export const createAccount = async (req, res,next) => {
+export const createAccount = async (req, res, next) => {
   try {
-    const { userName, password, email } = req.body;
-    const userImage = req.file
+    const { name, password, email } = req.body;
+    const profileImage = req?.file;
 
-    if (!userName || !password || !email) {
+    if (!name || !password || !email) {
       return res
         .status(400)
         .json({ message: "please provide all the required fields" });
     }
+
     const cleanemail = email.toLowerCase().trim();
     const existinguser = await user.findOne({ email: cleanemail });
 
-    if (existinguser) {
-      res.status(400).json({ message: "User already exists" });
-    }
     const hashedpassword = hashingpassword(password);
 
     if (existinguser && !existinguser.isverified) {
-      ((existinguser.email = email), (existinguser.password = password));
+      existinguser.name = name;
+      existinguser.email = cleanemail;
+      existinguser.password = hashedpassword;
+
+      if (profileImage) {
+        const result = await uploadToCloudinary(req.file.buffer);
+        existinguser.profileImage = result.secure_url;
+        existinguser.Cloudinary_ID = result.public_id;
+      }
+
       await existinguser.save();
     } else {
-      const newuser = new user({
-        name: userName,
+      if (existinguser) {
+        return res.status(400).json({ message: "User already exists" });
+      }
+
+      const newUserData = {
+        name: name,
         email: cleanemail,
         password: hashedpassword,
-      });
+      };
+
+      if (profileImage) {
+        const result = await uploadToCloudinary(req.file.buffer);
+        newUserData.profileImage = result.secure_url;
+        newUserData.Cloudinary_ID = result.public_id;
+      }
+
+      const newuser = new user(newUserData);
       await newuser.save();
     }
 
@@ -40,19 +59,17 @@ export const createAccount = async (req, res,next) => {
     await OTP.deleteMany({ email: cleanemail });
     await new OTP({ email: cleanemail, OTP: generatedOTP.trim() }).save();
 
-    OTPMail(email, generatedOTP);
+    OTPMail(cleanemail, generatedOTP);
     res.status(201).json({
       message: "user saved successfully and OTP sent",
-      user: userName,
+      user: name,
     });
   } catch (error) {
     next(error);
   }
 };
 
-export const otprequest = async (
-  req, res, next
-) => {
+export const otprequest = async (req, res, next) => {
   try {
     const { email, clientOTP } = req.body;
 
@@ -114,9 +131,7 @@ export const otprequest = async (
   }
 };
 
-export const loginfun = async (
-  req, res, next
-) => {
+export const loginfun = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const cleanemail =
@@ -176,9 +191,7 @@ export const logout = async (req, res) => {
   res.status(200).json({ message: "you are logged out" });
 };
 
-export const OUTSIDEdashboardData = async (
-  req, res, next
-) => {
+export const OUTSIDEdashboardData = async (req, res, next) => {
   try {
     const aggregation = await user.aggregate([
       {

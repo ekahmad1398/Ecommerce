@@ -6,7 +6,7 @@ const productSchema = new mongoose.Schema(
     description: { type: String, trim: true, maxlength: 2000 },
     price: { type: Number, required: true, min: 0 },
     stock: { type: Number, required: true, min: 0, default:1 },
-    category: { type: String, enum: ["Home", "Kitchen", "Electronics", "Office", "Clothing", "Others"], required: true },
+    category: { type: mongoose.Schema.Types.ObjectId, ref:"category" , required: true },
     brand: { type: String, trim: true, maxlength: 80, default: "GEN" }, // Default helps SKU generation if missing
     sku: { type: String, trim: true, uppercase: true, required: true, maxlength: 80 },
     color: { type: String, trim: true, maxlength: 80, default: "ANY" }, // Default helps SKU generation if missing

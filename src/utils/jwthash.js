@@ -1,5 +1,4 @@
 import jwt from "jsonwebtoken";
-import env from "../config.js";
 import bcrypt from "bycryptjs";
 
 
@@ -16,8 +15,8 @@ const accessjwtfun = (
   }
 
 
-  return jwt.sign(payload, env.JWT_temp_token, {
-    expiresIn: `${env.Expiry_For_Temp_JWT}m`,
+  return jwt.sign(payload, process.env.JWT_temp_token, {
+    expiresIn: `${process.env.Expiry_For_Temp_JWT}m`,
   });
 };
 
@@ -27,25 +26,18 @@ export const resetjwtfun = (id, type, password) => {
   const secret = env.JWT_temp_token + password;
 
   return jwt.sign({ id, type }, secret, {
-    expiresIn: `15m`,
+    expiresIn: `${process.env.Expiry_For_Temp_JWT}m`,
   });
 };
 
-
-
-
 export const refreshjwtfun = (id) => {
-  return jwt.sign(id, env.JWT_Long_Token, {
+  return jwt.sign(id, process.env.JWT_Long_Token, {
     expiresIn: `${env.Expiry_For_Long_JWT}d`,
   });
 };
 
 
-
-
-
 export const hashingpassword = (password) => {
-  
   const hashedpassword = bcrypt.hashSync(password, 12);
   return hashedpassword;
 };
