@@ -56,7 +56,7 @@ export const createAccount = async (req, res, next) => {
     }
 
     const generatedOTP = crypto.randomInt(100000, 999999).toString();
-    const HashedOTP = hashingpassword(generatedOTP)
+    const HashedOTP = hashingpassword(generatedOTP);
     await OTP.deleteMany({ email: cleanemail });
     await new OTP({ email: cleanemail, OTP: HashedOTP }).save();
 
@@ -80,11 +80,10 @@ export const otprequest = async (req, res, next) => {
 
     const cleanemail = email.trim().toLowerCase();
     const activeotp = await OTP.findOne({ email: cleanemail });
-    const comparignOTP = bcrypt.compare(activeotp, clientOTP)
-
     if (!activeotp) {
       return res.status(400).json({ message: "incorrect or invalid OTP" });
     }
+    const comparignOTP = bcrypt.compare(clientOTP, activeotp);
 
     await activeotp.deleteOne({ _id: activeotp._id });
 
@@ -107,14 +106,14 @@ export const otprequest = async (req, res, next) => {
 
     res.cookie("accesstoken", accesstoken, {
       httpOnly: true,
-      secure: env.Node_Env === "production",
+      secure: process.env.Node_Env === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 30 * 60 * 1000,
     });
     res.cookie("refreshtoken", refreshtoken, {
       httpOnly: true,
-      secure: env.Node_Env === "production",
+      secure: process.env.Node_Env === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 30,
@@ -154,14 +153,14 @@ export const loginfun = async (req, res, next) => {
 
     res.cookie("accesstoken", accesstoken, {
       httpOnly: true,
-      secure: env.Node_Env === "production",
+      secure: process.env.Node_Env === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 30 * 60 * 1000,
     });
     res.cookie("refreshtoken", refreshtoken, {
       httpOnly: true,
-      secure: env.Node_Env === "production",
+      secure: process.env.Node_Env === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 30,
@@ -176,13 +175,13 @@ export const loginfun = async (req, res, next) => {
 export const logout = async (req, res) => {
   res.clearCookie("accesstoken", {
     httpOnly: true,
-    secure: env.Node_Env === "production",
+    secure: process.env.Node_Env === "production",
     sameSite: "lax",
     path: "/",
   });
   res.clearCookie("refreshtoken", {
     httpOnly: true,
-    secure: env.Node_Env === "production",
+    secure: process.env.Node_Env === "production",
     sameSite: "lax",
     path: "/",
   });

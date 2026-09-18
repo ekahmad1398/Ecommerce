@@ -1,19 +1,12 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bycryptjs";
 
-
-const accessjwtfun = (
-  id ,
-  role ,
-  isBanned ,
-  type ,
-) => {
+const accessjwtfun = (id, role, isBanned, type) => {
   const payload = { id, role, isBanned };
 
   if (type) {
     payload.type = type;
   }
-
 
   return jwt.sign(payload, process.env.JWT_temp_token, {
     expiresIn: `${process.env.Expiry_For_Temp_JWT}m`,
@@ -35,7 +28,6 @@ export const refreshjwtfun = (id) => {
     expiresIn: `${env.Expiry_For_Long_JWT}d`,
   });
 };
-
 
 export const hashingpassword = (password) => {
   const hashedpassword = bcrypt.hashSync(password, 12);
