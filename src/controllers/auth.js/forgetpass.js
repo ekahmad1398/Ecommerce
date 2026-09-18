@@ -1,9 +1,9 @@
 import bcrypt from "bcryptjs";
-import user from "../models/User.js";
+import user from "../../models/User.js";
 import jwt from "jsonwebtoken";
-import { forgetmail } from "../../config/mailtrapconfig.js";
-import { hashingpassword, resetjwtfun } from "../utils/jwthash.js";
-import resetPasswordModel from "../models/ResetLinkPass.js";
+import { forgetmail } from "../../../config/mailtrapconfig.js";
+import { hashingpassword, resetjwtfun } from "../../utils/jwthash.js";
+import resetPasswordModel from "../../models/ResetLinkPass.js";
 
 export const forgetpassword = async (req, res, next) => {
   try {

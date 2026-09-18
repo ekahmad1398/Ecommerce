@@ -1,10 +1,10 @@
-import user from "../models/User.js";
-import OTP from "../models/Otp.js";
+import user from "../../models/User.js";
+import OTP from "../../models/Otp.js";
 import crypto from "crypto";
-import jwtfun, { hashingpassword, refreshjwtfun } from "../utils/jwthash.js";
-import { OTPMail } from "../../config/mailtrapconfig.js";
+import jwtfun, { hashingpassword, refreshjwtfun } from "../../utils/jwthash.js";
+import { OTPMail } from "../../../config/mailtrapconfig.js";
 import bcrypt from "bcryptjs";
-import { uploadToCloudinary } from "../middleware/upload.js";
+import { uploadToCloudinary } from "../../middleware/upload.js";
 
 export const createAccount = async (req, res, next) => {
   try {

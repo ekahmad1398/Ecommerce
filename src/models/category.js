@@ -1,23 +1,27 @@
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 
-const data = new mongoose.Schema({
-    name:{
-        type:String,
-        required:true,
-        trim:true
+const data = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
     },
-    parentCategory:{
-        type: mongoose.Schema.Types.ObjectId,
-        ref:"category",
-        default:null
+    parentCategory: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "category",
+      default: null,
     },
-    attributes:[
-        {
-            type:String,
-            trim:true
-        }
-    ]
-},
-{timestamps:true})
+    attributes: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+  },
+  { timestamps: true },
+);
 
-export default mongoose.model("category", data)
+data.index({ name: 1, parentCategory: 1 }, { unique: true });
+
+export default mongoose.model("category", data);
