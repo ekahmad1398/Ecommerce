@@ -26,6 +26,7 @@ productSchema.index({ isActive: 1, createdAt: -1 });
 productSchema.index({ vendorId: 1, sku: 1 }, { unique: true })
 
 
+export default mongoose.model("product", productSchema);
 export function generateSKU(brand, category, color) {
   const clean = (str) => {
     if (!str) return;
@@ -33,4 +34,3 @@ export function generateSKU(brand, category, color) {
   };
   return `${clean(brand)}-${clean(category)}-${clean(color)}`;
 }
-export default mongoose.model("Product", productSchema);
