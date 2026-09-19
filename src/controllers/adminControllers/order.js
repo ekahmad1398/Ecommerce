@@ -1,5 +1,7 @@
 import order from "../../models/Order.js";
 import orderitems from "../../models/orderItems.js";
+
+
 export const getAdminOrderFeed = async (req, res, next) => {
   try {
     const totalOrders = await order.countDocuments();
@@ -28,10 +30,12 @@ export const getAdminOrderFeed = async (req, res, next) => {
 export const getVendorBalanceLedger = async (req, res, next) => {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit || 10, 1)), 50);
+    const requestePage = Math.max(1, parseInt(req.query.page) || 1);
+    const skip = (requestePage - 1) * limit;
     const ledgerBalance = await orderitems.aggregate([
       {
         $match: {
-          itemsStatus: { $in: ["shipped", "delivered", "processing"] },
+          status: { $in: ["shipped", "delivered", "processing"] },
         },
       },
       {
@@ -75,12 +79,16 @@ export const getVendorBalanceLedger = async (req, res, next) => {
     ]);
     const vendors = ledgerBalance.ledgerData ?? [];
     const totalVendors = ledgerBalance.metaData.totalVendors;
-    const totalPages = Math.ceil(totalVendors / limit);
-    const page = Math.min(Math.max(Number(req.query.page) || 1, 1), totalPages);
-    const skip = (page - 1) * limit;
+    const totalPages = totalVendors > 0 ? Math.ceil(totalVendors / limit) : 1;
+    const actualCurrentPage = Math.min(requestePage, totalPages);
 
     res.status(200).json({
       success: true,
+      currentPage: actualCurrentPage,
+      skip,
+      totalPages,
+      totalVendors,
+      vendorsData: vendors,
     });
   } catch (error) {
     next(error);

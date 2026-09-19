@@ -10,7 +10,7 @@ const vendorSchema = new Schema(
     mobilenumber: { type: String, required: true, trim: true, maxlength: 20 },
     status: {
       type: String,
-      enum: ["pending", "suspended", "active"],
+      enum: ["pending", "inactive", "suspended", "active"],
       default: "pending",
       index:true
     },
