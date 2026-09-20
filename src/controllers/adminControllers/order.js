@@ -1,7 +1,7 @@
 
-import Suborder from "../models/suborder.js";
+import Suborder from "../../models/orderItems.js";
 
-
+// Create new suborder
 export const createSuborder = async (req, res) => {
   try {
     const suborder = new Suborder(req.body);
@@ -44,7 +44,7 @@ export const getSuborders = async (req, res) => {
   }
 };
 
-
+// Get suborder by ID
 export const getSuborderById = async (req, res) => {
   try {
     const suborder = await Suborder.findById(req.params.id)
@@ -58,6 +58,7 @@ export const getSuborderById = async (req, res) => {
   }
 };
 
+// Update suborder
 export const updateSuborder = async (req, res) => {
   try {
     const allowedUpdates = [
