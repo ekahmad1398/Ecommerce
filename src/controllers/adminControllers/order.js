@@ -1,7 +1,7 @@
 
 import Suborder from "../../models/orderItems.js";
 
-// Create new suborder
+
 export const createSuborder = async (req, res) => {
   try {
     const suborder = new Suborder(req.body);
@@ -18,7 +18,7 @@ export const getSuborders = async (req, res) => {
     const skip = (Math.max(1, Number(page)) - 1) * Number(limit);
     const query = {};
 
-    // Allow filtering by orderID, vendorID, productID, status
+    
     if (filters.orderID) query.orderID = filters.orderID;
     if (filters.vendorID) query.vendorID = filters.vendorID;
     if (filters.productID) query.productID = filters.productID;
@@ -44,7 +44,7 @@ export const getSuborders = async (req, res) => {
   }
 };
 
-// Get suborder by ID
+
 export const getSuborderById = async (req, res) => {
   try {
     const suborder = await Suborder.findById(req.params.id)
@@ -58,7 +58,7 @@ export const getSuborderById = async (req, res) => {
   }
 };
 
-// Update suborder
+
 export const updateSuborder = async (req, res) => {
   try {
     const allowedUpdates = [
