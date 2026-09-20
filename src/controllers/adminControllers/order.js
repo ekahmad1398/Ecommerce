@@ -41,9 +41,9 @@ export const getVendorBalanceLedger = async (req, res, next) => {
       {
         $group: {
           _id: "$vendorID",
-          totalGrossSales: { $sum: { $multiply: ["quantity", "price"] } },
-          totalVendorNetEarning: { $sum: "$vendorNetEarned" },
-          totalPlatfromCommision: { $sum: "$platformComissionCut" },
+          totalGrossSales: { $sum: "$subOrderTotal" },
+          totalVendorNetEarning: { $sum: "$items.vendorNetEarned" },
+          totalPlatfromCommision: { $sum: "$items.platformComissionCut" },
         },
       },
       {

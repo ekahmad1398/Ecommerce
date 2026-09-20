@@ -12,23 +12,33 @@ const orderItemSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "vendor",
       required: true,
+      index: true,
     },
-    productID: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "product",
-      required: true,
-    },
-    quantity: { type: Number, required: true, min: 1 },
-    price: { type: Number, required: true },
+    items: [
+      {
+        productID: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "product",
+          required: true,
+        },
+        quantity: { type: Number, required: true, min: 1 },
+        price: { type: Number, required: true },
+        subtotal: { type: Number, required: true },
+        platformComissionCut: { type: Number, required: true },
+        vendorNetEarned: { type: Number, required: true },
+      },
+    ],
+    subOrderTotal: { type: Number, required: true },
     status: {
       type: String,
       enum: ["processing", "shipped", "delivered", "cancelled"],
       default: "processing",
     },
-    platformComissionCut: { type: Number, required: true },
-    vendorNetEarned: { type: Number, required: true },
+    isPaidOutToVendor: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
+
+orderItemSchema.index({ status: 1, "items.productID": 1 });
 
 export default mongoose.model("suborder", orderItemSchema);
