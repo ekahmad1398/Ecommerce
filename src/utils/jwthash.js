@@ -1,12 +1,8 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bycryptjs";
 
-const accessjwtfun = (id, role, isBanned, type) => {
-  const payload = { id, role, isBanned };
-
-  if (type) {
-    payload.type = type;
-  }
+const accessjwtfun = ({ id, role, status, vendorID = null }) => {
+  const payload = { id, role, status, vendorID };
 
   return jwt.sign(payload, process.env.JWT_temp_token, {
     expiresIn: `${process.env.Expiry_For_Temp_JWT}m`,
@@ -15,7 +11,7 @@ const accessjwtfun = (id, role, isBanned, type) => {
 
 export default accessjwtfun;
 
-export const resetjwtfun = (id, type, password) => {
+export const resetjwtfun = ({ id, type, password }) => {
   const secret = env.JWT_temp_token + password;
 
   return jwt.sign({ id, type }, secret, {
@@ -23,7 +19,7 @@ export const resetjwtfun = (id, type, password) => {
   });
 };
 
-export const refreshjwtfun = (id) => {
+export const refreshjwtfun = ({ id, role }) => {
   return jwt.sign(id, process.env.JWT_Long_Token, {
     expiresIn: `${env.Expiry_For_Long_JWT}d`,
   });

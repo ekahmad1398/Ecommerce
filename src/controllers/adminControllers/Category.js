@@ -38,12 +38,7 @@ export const getAllCategories = async (req, res, next) => {
       count: categories.length,
       categories,
     });
-
-    res.status(201).json({
-      success: true,
-      category: newCategory,
-      message: "marketplace category created successfully",
-    });
+    
   } catch (error) {
     next(error);
   }

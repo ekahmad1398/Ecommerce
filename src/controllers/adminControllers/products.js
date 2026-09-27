@@ -72,11 +72,11 @@ export const GetProducts = async (req, res, next) => {
     const totalPages = Math.ceil(totalProducts / limit);
     const page = Math.min(Math.max(Number(req.query.page) || 1, 1), totalPages);
     const skip = (page - 1) * limit;
+
+
     res.status(200).json({
       totalProducts,
       totalPages,
-      limit,
-      skip,
       products
     })
   } catch (error) {

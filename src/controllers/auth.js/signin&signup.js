@@ -26,6 +26,7 @@ export const createAccount = async (req, res, next) => {
       existinguser.name = name;
       existinguser.email = cleanemail;
       existinguser.password = hashedpassword;
+      existinguser.status = "inactive";
 
       if (profileImage) {
         const result = await uploadToCloudinary(req.file.buffer);
@@ -43,6 +44,7 @@ export const createAccount = async (req, res, next) => {
         name: name,
         email: cleanemail,
         password: hashedpassword,
+        status: "inactive",
       };
 
       if (profileImage) {
@@ -85,6 +87,10 @@ export const otprequest = async (req, res, next) => {
     }
     const comparignOTP = bcrypt.compare(clientOTP, activeotp);
 
+    if (!comparignOTP) {
+      return res.status(400).json({ message: "incorrect or invalid OTP" });
+    }
+
     await activeotp.deleteOne({ _id: activeotp._id });
 
     const unlockuser = await user.findOneAndUpdate(
@@ -97,12 +103,15 @@ export const otprequest = async (req, res, next) => {
       return res.status(404).json({ message: "user was deleted or missing" });
     }
 
-    const accesstoken = jwtfun(
-      unlockuser.id,
-      unlockuser.role,
-      unlockuser.status,
-    );
-    const refreshtoken = refreshjwtfun(unlockuser.id);
+    const accesstoken = jwtfun({
+      id: unlockuser.id,
+      role: unlockuser.role,
+      status: unlockuser.status,
+    });
+    const refreshtoken = refreshjwtfun({
+      id: unlockuser.id,
+      role: unlockuser.role,
+    });
 
     res.cookie("accesstoken", accesstoken, {
       httpOnly: true,
@@ -148,8 +157,12 @@ export const loginfun = async (req, res, next) => {
       return res.status(400).json({ message: "incorrect email or password" });
     }
 
-    const accesstoken = jwtfun(User.id, User.role, User.isBanned);
-    const refreshtoken = refreshjwtfun(User.id);
+    const accesstoken = jwtfun({
+      id: User.id,
+      role: User.role,
+      status: User.status,
+    });
+    const refreshtoken = refreshjwtfun({ id: User.id, role: User.role });
 
     res.cookie("accesstoken", accesstoken, {
       httpOnly: true,
@@ -179,59 +192,13 @@ export const logout = async (req, res) => {
     sameSite: "lax",
     path: "/",
   });
+
   res.clearCookie("refreshtoken", {
     httpOnly: true,
     secure: process.env.Node_Env === "production",
     sameSite: "lax",
     path: "/",
   });
+
   res.status(200).json({ message: "you are logged out" });
-};
-
-export const OUTSIDEdashboardData = async (req, res, next) => {
-  try {
-    const aggregation = await user.aggregate([
-      {
-        $match: {
-          isactive: true,
-        },
-      },
-      {
-        $set: {
-          totalvalues: { $multiply: ["$price", "$quantity"] },
-        },
-      },
-      {
-        $sort: {
-          createdAt: -1,
-        },
-      },
-      {
-        $project: {
-          name: 1,
-          quantity: 1,
-          price: 1,
-          totalValue: "$totalvalues",
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          products: {
-            $push: "$$ROOT",
-          },
-          totalStockValue: {
-            $sum: "$totalValue",
-          },
-        },
-      },
-    ]);
-
-    res.status(200).json({
-      success: true,
-      aggregation,
-    });
-  } catch (error) {
-    next(error);
-  }
 };

@@ -1,6 +1,6 @@
 import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
 
-// memoryStorage keeps the temporary image in RAM so it can be sent straight to Cloudinary.
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, callback) => {
@@ -14,15 +14,12 @@ const fileFilter = (req, file, callback) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, 
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
 export default upload;
 
-
-export const uploadToCloudinary = (
-  buffer,
-) => {
+export const uploadToCloudinary = (buffer) => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
@@ -35,4 +32,16 @@ export const uploadToCloudinary = (
     );
     streamifier.createReadStream(buffer).pipe(uploadStream);
   });
+};
+
+export const deleteFromCloudinary = async ({ publicId }) => {
+  try {
+    if (!publicId) return null;
+    const result = await cloudinary.uploader.destroy(publicId);
+  } catch (error) {
+    console.log(
+      `failed to delete the asset ${publicId} from cloudinary.`,
+      error,
+    );
+  }
 };

@@ -1,7 +1,6 @@
 import order from "../../models/Order.js";
 import orderitems from "../../models/orderItems.js";
 
-
 export const getAdminOrderFeed = async (req, res, next) => {
   try {
     const totalOrders = await order.countDocuments();
@@ -15,6 +14,7 @@ export const getAdminOrderFeed = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
+
     res.status(200).json({
       success: true,
       currentPage: page,
@@ -42,8 +42,8 @@ export const getVendorBalanceLedger = async (req, res, next) => {
         $group: {
           _id: "$vendorID",
           totalGrossSales: { $sum: "$subOrderTotal" },
-          totalVendorNetEarning: { $sum: "$items.vendorNetEarned" },
-          totalPlatfromCommision: { $sum: "$items.platformComissionCut" },
+          totalVendorNetEarning: { $sum: "$vendorNetEarned" },
+          totalPlatfromCommision: { $sum: "$platformComissionCut" },
         },
       },
       {

@@ -1,23 +1,29 @@
 import jwt from "jsonwebtoken";
-import AppError from "../utils/AppError.js";
 
 const auth = async (req, res, next) => {
-
-  const authcookie = req.cookies.authToken;
+  const authcookie = req.cookies.accesstoken;
   if (!authcookie) {
-    return next(new AppError("Authentication failed. No token provided.", 401));
+    return res
+      .status(401)
+      .json({ success: false, message: "user unauthenticated" });
   }
 
   try {
     const decoded = jwt.verify(authcookie, process.env.JWT_SECRET);
-    req.userId = decoded.userId;
-    next();
 
+    if (decoded.status === "blocked") {
+      return res.status(403).json({
+        success: false,
+        message: "user is banned from performing this action",
+      });
     }
-   catch (error) {
+
+    req.user = decoded
+
+    next();
+  } catch (error) {
     next(error);
-
   }
-
 };
 
+export default auth;

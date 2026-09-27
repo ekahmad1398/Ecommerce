@@ -16,11 +16,11 @@ export const forgetpassword = async (req, res, next) => {
         .json({ message: "if email is available, the password is sent." });
     }
 
-    const token = resetjwtfun(
-      existinguser.id,
-      process.env.JWT_RESET_TEXT,
-      existinguser.password,
-    );
+    const token = resetjwtfun({
+      id: existinguser.id,
+      type: process.env.JWT_RESET_TEXT,
+      password: existinguser.password,
+    });
     const link = `${env.Frontend_URL}/resetPassword/${token}`;
 
     const TokenModel = new resetPasswordModel({
@@ -41,10 +41,12 @@ export const resetLink = async (req, res, next) => {
     if (!password || !token || !email) {
       return res.status(400).json({ message: "all fields are required" });
     }
-    const IDuser = await user.find({ email }).select("password rules");
+    const IDuser = await user.findOne({ email }).select("password role");
 
     if (!IDuser) {
-      return res.status(404).json({ message: "session expired" });
+      return res
+        .status(404)
+        .json({ message: "session expired or user dont exist." });
     }
 
     const secret = env.JWT_temp_token + IDuser.password;
@@ -55,6 +57,32 @@ export const resetLink = async (req, res, next) => {
 
     IDuser.password = hashedpassword;
     await IDuser.save();
+
+    const accesstoken = jwtfun({
+      id: IDuser.id,
+      role: IDuser.role,
+      status: IDuser.status,
+    });
+    
+    const refreshtoken = refreshjwtfun({
+      id: IDuser.id,
+      role: IDuser.role,
+    });
+
+    res.cookie("accesstoken", accesstoken, {
+      httpOnly: true,
+      secure: process.env.Node_Env === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 30 * 60 * 1000, 
+    });
+    res.cookie("refreshtoken", refreshtoken, {
+      httpOnly: true,
+      secure: process.env.Node_Env === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    });
 
     res.status(201).json({
       sucess: true,

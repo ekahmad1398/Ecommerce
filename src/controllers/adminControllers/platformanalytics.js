@@ -15,7 +15,9 @@ export const getAdminDashboard = async (req, res, next) => {
             {
               $group: {
                 _id: null,
-                totalGMV: { $sum: { $multiply: ["quantity", "price"] } },
+                totalGMV: {
+                  $sum: { $sum: { $multiply: ["quantity", "price"] } },
+                },
                 totalPlatformRevenue: { $sum: "$platformComissionCut" },
               },
             },
@@ -53,11 +55,11 @@ export const getAdminDashboard = async (req, res, next) => {
       success: true,
       summary: {
         grossMerchandizeValue: gmv,
-        activeVendorCount:totalActiveVendors,
+        activeVendorCount: totalActiveVendors,
         PlatformRevenue,
-        registeredCustomerCount:totalCustomers
+        registeredCustomerCount: totalCustomers,
       },
-      chartData:piplineForFinance
+      chartData: piplineForFinance,
     });
   } catch (error) {
     next(error);
