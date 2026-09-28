@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import bcrypt from "bycryptjs";
+import bcrypt from "bcryptjs"
 
 const accessjwtfun = ({ id, role, status, vendorID = null }) => {
   const payload = { id, role, status, vendorID };

@@ -1,4 +1,4 @@
-export const roleMiddleware = (...allowedroles) => {
+const roleMiddleware = (...allowedroles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
@@ -15,3 +15,5 @@ export const roleMiddleware = (...allowedroles) => {
     next();
   };
 };
+
+export default roleMiddleware

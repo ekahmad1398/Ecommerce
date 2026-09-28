@@ -12,7 +12,7 @@ export const checkout = async (req, res, next) => {
     const customerID = req.user.id;
     const { shippingAddress, CartItems, paymentMethod } = req.body;
 
-    const allowedMethods = ["Stripe_Card", "PAYPOL", "COD"];
+    const allowedMethods = ["Stripe_Card", "PAYPAL", "COD"];
     if (!allowedMethods.includes(paymentMethod)) {
       return res.status(400).json({
         success: false,

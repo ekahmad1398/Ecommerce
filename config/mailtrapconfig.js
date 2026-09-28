@@ -59,9 +59,7 @@ export const OTPMail = async (
       },
     });
 
-    const messageId = result.messageId ?? result.id ?? null;
-    console.log("Email sent successfully to Mailtrap:", messageId);
-    return { success: true, messageId };
+    return { success: true};
   } catch (error) {
     console.error("Nodemailer transmission failed:", error);
     return { success: false, error };

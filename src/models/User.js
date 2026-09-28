@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema(
         created_at: { type: Date, default: Date.now }
       }
     ],
-    status: { type: String, enum: ["active", "inactive", "blocked"], default: "active" }
+    status: { type: String, enum: ["active", "inactive", "blocked"], default: "inactive" }
     
 
     

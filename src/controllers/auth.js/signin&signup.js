@@ -58,11 +58,12 @@ export const createAccount = async (req, res, next) => {
     }
 
     const generatedOTP = crypto.randomInt(100000, 999999).toString();
-    const HashedOTP = hashingpassword(generatedOTP);
+    const stringOTP = generatedOTP.toString();
+    const HashedOTP = hashingpassword(stringOTP);
     await OTP.deleteMany({ email: cleanemail });
-    await new OTP({ email: cleanemail, OTP: HashedOTP }).save();
+    await new OTP({ email: cleanemail, otp: HashedOTP }).save();
 
-    OTPMail(cleanemail, generatedOTP);
+    OTPMail(cleanemail, stringOTP);
     res.status(201).json({
       message: "user saved successfully and OTP sent",
       user: name,
@@ -80,22 +81,23 @@ export const otprequest = async (req, res, next) => {
       return res.status(400).json({ message: "missing required fields" });
     }
 
-    const cleanemail = email.trim().toLowerCase();
+    const cleanemail = email.toLowerCase().trim();
     const activeotp = await OTP.findOne({ email: cleanemail });
     if (!activeotp) {
       return res.status(400).json({ message: "incorrect or invalid OTP" });
     }
-    const comparignOTP = bcrypt.compare(clientOTP, activeotp);
+    const stringOTP = clientOTP.toString();
+    const comparignOTP = bcrypt.compare(stringOTP, activeotp.otp);
 
     if (!comparignOTP) {
       return res.status(400).json({ message: "incorrect or invalid OTP" });
     }
 
-    await activeotp.deleteOne({ _id: activeotp._id });
+     await activeotp.deleteOne({ _id: activeotp._id });
 
     const unlockuser = await user.findOneAndUpdate(
       { email: cleanemail },
-      { isEmailVerified: true },
+      { $set: { isEmailVerified: true, status:"active" } },
       { returnDocument: "after" },
     );
 
@@ -103,32 +105,32 @@ export const otprequest = async (req, res, next) => {
       return res.status(404).json({ message: "user was deleted or missing" });
     }
 
-    const accesstoken = jwtfun({
-      id: unlockuser.id,
-      role: unlockuser.role,
-      status: unlockuser.status,
-    });
-    const refreshtoken = refreshjwtfun({
-      id: unlockuser.id,
-      role: unlockuser.role,
-    });
+    // const accesstoken = jwtfun({
+    //   id: unlockuser.id,
+    //   role: unlockuser.role,
+    //   status: unlockuser.status,
+    // });
+    // const refreshtoken = refreshjwtfun({
+    //   id: unlockuser.id,
+    //   role: unlockuser.role,
+    // });
 
-    res.cookie("accesstoken", accesstoken, {
-      httpOnly: true,
-      secure: process.env.Node_Env === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 30 * 60 * 1000,
-    });
-    res.cookie("refreshtoken", refreshtoken, {
-      httpOnly: true,
-      secure: process.env.Node_Env === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-    });
+    // res.cookie("accesstoken", accesstoken, {
+    //   httpOnly: false,
+    //   secure: process.env.Node_Env === "production",
+    //   sameSite: "lax",
+    //   path: "/",
+    //   maxAge: 30 * 60 * 1000,
+    // });
+    // res.cookie("refreshtoken", refreshtoken, {
+    //   httpOnly: false,
+    //   secure: process.env.Node_Env === "production",
+    //   sameSite: "lax",
+    //   path: "/",
+    //   maxAge: 1000 * 60 * 60 * 24 * 30,
+    // });
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "email verified successfully",
     });
@@ -157,29 +159,29 @@ export const loginfun = async (req, res, next) => {
       return res.status(400).json({ message: "incorrect email or password" });
     }
 
-    const accesstoken = jwtfun({
-      id: User.id,
-      role: User.role,
-      status: User.status,
-    });
-    const refreshtoken = refreshjwtfun({ id: User.id, role: User.role });
+    // const accesstoken = jwtfun({
+    //   id: User.id,
+    //   role: User.role,
+    //   status: User.status,
+    // });
+    // const refreshtoken = refreshjwtfun({ id: User.id, role: User.role });
 
-    res.cookie("accesstoken", accesstoken, {
-      httpOnly: true,
-      secure: process.env.Node_Env === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 30 * 60 * 1000,
-    });
-    res.cookie("refreshtoken", refreshtoken, {
-      httpOnly: true,
-      secure: process.env.Node_Env === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-    });
+    // res.cookie("accesstoken", accesstoken, {
+    //   httpOnly: true,
+    //   secure: process.env.Node_Env === "production",
+    //   sameSite: "lax",
+    //   path: "/",
+    //   maxAge: 30 * 60 * 1000,
+    // });
+    // res.cookie("refreshtoken", refreshtoken, {
+    //   httpOnly: true,
+    //   secure: process.env.Node_Env === "production",
+    //   sameSite: "lax",
+    //   path: "/",
+    //   maxAge: 1000 * 60 * 60 * 24 * 30,
+    // });
 
-    res.status(200).json({ message: "welcome back" });
+    res.status(200).json({ success:false, message: "welcome back" });
   } catch (error) {
     next(error);
   }
