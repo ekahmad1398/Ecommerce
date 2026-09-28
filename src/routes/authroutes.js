@@ -14,7 +14,7 @@ import {
 } from "../controllers/auth.js/forgetpass.js";
 import authorize from "../middleware/auth.js";
 
-router.post("/createAcount", createAccount);
+router.post("/createAccount", createAccount);
 router.post("/otpRequest", otprequest);
 router.post("/login", loginfun);
 router.post("/logout", authorize, logout);

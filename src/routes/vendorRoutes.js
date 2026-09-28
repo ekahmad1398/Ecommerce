@@ -15,7 +15,7 @@ import {
   deleteVendorProduct,
 } from "../controllers/vendorControllers/vendorProduct.js";
 import authenticate from "../middleware/auth.js";
-import { authorize } from "../middleware/role.js";
+import authorize from "../middleware/role.js"
 
 const router = express.Router();
 

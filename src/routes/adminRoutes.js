@@ -6,7 +6,7 @@ import {
   deleteCategory,
 } from "../controllers/adminControllers/Category.js";
 import authenticate from "../middleware/auth.js";
-import { authorize } from "../middleware/role.js";
+import authorize from "../middleware/role.js";
 import {
   gettingVendors,
   approaveVendor,
