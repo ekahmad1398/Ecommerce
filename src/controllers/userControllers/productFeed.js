@@ -1,4 +1,5 @@
 import ProductSchema from "../../models/Product.js";
+import User from "../../models/User.js"
 
 export const FeedProducts = async (req, res, next) => {
   try {
@@ -109,3 +110,20 @@ export const specificProduct = async (req, res, next) => {
     next(error);
   }
 };
+
+export const userProfile = async(req,res,next)=>{
+  try {
+    const userID = req.user.id;
+
+    const userData = await User.findById(userID);
+
+    res.status(200).json({
+      success:true,
+      userData
+    })
+
+
+  } catch (error) {
+    next()
+  }
+}

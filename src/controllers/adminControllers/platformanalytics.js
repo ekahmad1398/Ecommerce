@@ -5,29 +5,27 @@ export const getAdminDashboard = async (req, res, next) => {
   try {
     const piplineForFinance = await orderItems.aggregate([
       {
+        $match: {
+          status: { $in: ["processing", "shipped", "delivered"] },
+        },
+      },
+      {
         $facet: {
           financialStats: [
-            {
-              $match: {
-                status: { $in: ["processing", "shipped", "delivered"] },
-              },
-            },
             {
               $group: {
                 _id: null,
                 totalGMV: {
-                  $sum: { $sum: { $multiply: ["quantity", "price"] } },
+                  $sum: "$subOrderTotal",
                 },
                 totalPlatformRevenue: { $sum: "$platformComissionCut" },
+                averageOrderValue: {
+                  $avg: "$subOrderTotal",
+                },
               },
             },
           ],
           monthlyRevenueChart: [
-            {
-              $match: {
-                status: { $in: ["processing", "shipped", "delivered"] },
-              },
-            },
             {
               $group: {
                 _id: {

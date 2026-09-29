@@ -13,6 +13,7 @@ import {
   CreateVendorProduct,
   UpdateVendorProduct,
   deleteVendorProduct,
+  readProduct
 } from "../controllers/vendorControllers/vendorProduct.js";
 import authenticate from "../middleware/auth.js";
 import authorize from "../middleware/role.js"
@@ -28,6 +29,7 @@ router.use(authorize("vendor"));
 router.post("/CreateProduct", CreateVendorProduct);
 router.post("/UpdateProduct/:id", UpdateVendorProduct);
 router.delete("/deleteProduct/:id", deleteVendorProduct);
+router.get("/readProduct/:id", readProduct);
 router.get("/financeData", getVendorFinancialStatus);
 router.get("/LogisticData", getvendorLogisticData);
 router.get("/getProfile", getVendorProfile);

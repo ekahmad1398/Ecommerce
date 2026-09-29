@@ -166,3 +166,18 @@ export const deleteVendorProduct = async (req, res, next) => {
     next(error);
   }
 };
+
+
+export const readProduct = async (req,res, next)=>{
+  try {
+    const {id}= req.params;
+
+    const product =  await Product.findById(id)
+    if(!product){
+      res.status(404).json({success:false, message:"product not found."})
+    }
+
+  } catch (error) {
+   next(error) 
+  }
+}
