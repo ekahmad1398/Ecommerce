@@ -16,12 +16,13 @@ import {
 } from "../controllers/vendorControllers/vendorProduct.js";
 import authenticate from "../middleware/auth.js";
 import authorize from "../middleware/role.js"
+import upload from "../middleware/upload.js";
 
 const router = express.Router();
 
-router.post("/register", authenticate, registerVendor);
 
 router.use(authenticate);
+router.post("/register", upload.single('companyimage'), registerVendor);
 router.use(authorize("vendor"));
 
 router.post("/CreateProduct", CreateVendorProduct);

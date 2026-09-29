@@ -22,7 +22,7 @@ const router = express.Router();
 
 router.use(authenticate);
 
-router.post("/createCategory", authorize("vendor", "admin"), createCategory);
+router.post("/createCategory", authorize("vendor", "admin"), authorize("admin", "vendor"), createCategory);
 router.get("/getAllCategories", authorize("vendor", "admin"), getAllCategories);
 
 router.use(authorize("admin"));
@@ -33,6 +33,6 @@ router.get("/getAdminOrderFeed", getAdminOrderFeed);
 router.get("/getVendorBalanceLedger", getVendorBalanceLedger);
 router.get("/getAdminDashboard", getAdminDashboard);
 router.get("/GetProducts", GetProducts);
-router.post("/approaveVendor/:vendorID", approaveVendor);
+router.post("/approaveVendor/:id", approaveVendor);
 
 export default router;

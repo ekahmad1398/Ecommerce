@@ -8,8 +8,10 @@ import AuthRoutes from "./routes/authroutes.js";
 import userRoutes from "./routes/userroutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import cron_worker from "./utils/cron_worker.js"
+import cookieParser from "cookie-parser";
 
 const app = express();
+app.use(cookieParser())
 app.use("/api/v1/webhooks", stripeWebhook);
 
 app.use(express.json());

@@ -22,7 +22,7 @@ export const createAccount = async (req, res, next) => {
 
     const hashedpassword = hashingpassword(password);
 
-    if (existinguser && !existinguser.isverified) {
+    if (existinguser && !existinguser.isEmailVerified) {
       existinguser.name = name;
       existinguser.email = cleanemail;
       existinguser.password = hashedpassword;
@@ -93,11 +93,11 @@ export const otprequest = async (req, res, next) => {
       return res.status(400).json({ message: "incorrect or invalid OTP" });
     }
 
-     await activeotp.deleteOne({ _id: activeotp._id });
+    await activeotp.deleteOne({ _id: activeotp._id });
 
     const unlockuser = await user.findOneAndUpdate(
       { email: cleanemail },
-      { $set: { isEmailVerified: true, status:"active" } },
+      { $set: { isEmailVerified: true, status: "active" } },
       { returnDocument: "after" },
     );
 
@@ -105,30 +105,28 @@ export const otprequest = async (req, res, next) => {
       return res.status(404).json({ message: "user was deleted or missing" });
     }
 
-    // const accesstoken = jwtfun({
-    //   id: unlockuser.id,
-    //   role: unlockuser.role,
-    //   status: unlockuser.status,
-    // });
-    // const refreshtoken = refreshjwtfun({
-    //   id: unlockuser.id,
-    //   role: unlockuser.role,
-    // });
+    const accesstoken = jwtfun({
+      id: unlockuser.id,
+      role: unlockuser.role,
+    });
+    const refreshtoken = refreshjwtfun({
+      id: unlockuser.id,
+    });
 
-    // res.cookie("accesstoken", accesstoken, {
-    //   httpOnly: false,
-    //   secure: process.env.Node_Env === "production",
-    //   sameSite: "lax",
-    //   path: "/",
-    //   maxAge: 30 * 60 * 1000,
-    // });
-    // res.cookie("refreshtoken", refreshtoken, {
-    //   httpOnly: false,
-    //   secure: process.env.Node_Env === "production",
-    //   sameSite: "lax",
-    //   path: "/",
-    //   maxAge: 1000 * 60 * 60 * 24 * 30,
-    // });
+    res.cookie("accesstoken", accesstoken, {
+      httpOnly: false,
+      secure: process.env.Node_Env === "production",
+      sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+      path: "/",
+      maxAge: 20 * 60 * 1000,
+    });
+    res.cookie("refreshtoken", refreshtoken, {
+      httpOnly: false,
+      secure: process.env.Node_Env === "production",
+      sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+      path: "/",
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    });
 
     res.status(200).json({
       success: true,
@@ -159,29 +157,28 @@ export const loginfun = async (req, res, next) => {
       return res.status(400).json({ message: "incorrect email or password" });
     }
 
-    // const accesstoken = jwtfun({
-    //   id: User.id,
-    //   role: User.role,
-    //   status: User.status,
-    // });
-    // const refreshtoken = refreshjwtfun({ id: User.id, role: User.role });
+    const accesstoken = jwtfun({
+      id: User.id,
+      role: User.role,
+    });
+    const refreshtoken = refreshjwtfun({ id: User.id});
 
-    // res.cookie("accesstoken", accesstoken, {
-    //   httpOnly: true,
-    //   secure: process.env.Node_Env === "production",
-    //   sameSite: "lax",
-    //   path: "/",
-    //   maxAge: 30 * 60 * 1000,
-    // });
-    // res.cookie("refreshtoken", refreshtoken, {
-    //   httpOnly: true,
-    //   secure: process.env.Node_Env === "production",
-    //   sameSite: "lax",
-    //   path: "/",
-    //   maxAge: 1000 * 60 * 60 * 24 * 30,
-    // });
+    res.cookie("accesstoken", accesstoken, {
+      httpOnly: true,
+      secure: process.env.Node_Env === "production",
+      sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+      path: "/",
+      maxAge: 20 * 60 * 1000,
+    });
+    res.cookie("refreshtoken", refreshtoken, {
+      httpOnly: true,
+      secure: process.env.Node_Env === "production",
+      sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+      path: "/",
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    });
 
-    res.status(200).json({ success:false, message: "welcome back" });
+    res.status(200).json({ success: true, message: "welcome back" });
   } catch (error) {
     next(error);
   }
@@ -191,14 +188,14 @@ export const logout = async (req, res) => {
   res.clearCookie("accesstoken", {
     httpOnly: true,
     secure: process.env.Node_Env === "production",
-    sameSite: "lax",
+    sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
     path: "/",
   });
 
   res.clearCookie("refreshtoken", {
     httpOnly: true,
     secure: process.env.Node_Env === "production",
-    sameSite: "lax",
+    sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
     path: "/",
   });
 

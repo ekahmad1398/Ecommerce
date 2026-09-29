@@ -1,3 +1,4 @@
+import { uploadToCloudinary } from "../../middleware/upload.js";
 import Vendor from "../../models/vendor.js";
 
 export const registerVendor = async (req, res, next) => {
@@ -19,7 +20,11 @@ export const registerVendor = async (req, res, next) => {
       });
     }
 
-    const { name, companyName, lastName, country, mobilenumber } = req.body;
+    const { name, companyName, lastName, country, mobilenumber, storeDescription, storeSlug } = req.body;
+
+    if(!name, !companyName, !lastName, !country, !mobilenumber, !storeDescription, !storeSlug){
+      return res.status(400).json({success:false, message:"all fields are required"})
+    }
 
     const image = {};
 
@@ -34,6 +39,8 @@ export const registerVendor = async (req, res, next) => {
       name,
       companyName,
       lastName,
+      storeDescription,
+      storeSlug,
       country,
       mobilenumber,
       Companyimage: image,

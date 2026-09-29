@@ -92,6 +92,7 @@ export const forgetmail = async (
       },
     });
 
+    return {succes:true}
 
   } catch (error) {
     console.error("Nodemailer transmission failed:", error);

@@ -8,7 +8,7 @@ import {
 export const CreateVendorProduct = async (req, res, next) => {
   try {
     const vendorID = req.user.vendorID;
-    const { brand, category, color, categoryID } = req.body;
+    const { brand, category, color, categoryID, name, description, price, stock } = req.body;
     if (!vendorID) {
       res.status(403).json({
         success: false,
@@ -44,7 +44,13 @@ export const CreateVendorProduct = async (req, res, next) => {
 
     const createdSKU = generateSKU({ brand, category, color });
     const addedProduct = await Product.create({
-      ...req.body,
+      name,
+      description,
+      brand,
+      category,
+      stock,
+      price,
+      color,
       sku: createdSKU,
       vendorId: vendorID,
       images: imagesData,

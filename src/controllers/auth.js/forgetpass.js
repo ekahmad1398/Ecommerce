@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { forgetmail } from "../../../config/mailtrapconfig.js";
 import { hashingpassword, resetjwtfun } from "../../utils/jwthash.js";
 import resetPasswordModel from "../../models/ResetLinkPass.js";
+import ResetLinkPass from "../../models/ResetLinkPass.js";
 
 export const forgetpassword = async (req, res, next) => {
   try {
@@ -21,7 +22,11 @@ export const forgetpassword = async (req, res, next) => {
       type: process.env.JWT_RESET_TEXT,
       password: existinguser.password,
     });
-    const link = `${env.Frontend_URL}/resetPassword/${token}`;
+    const link = `${process.env.Frontend_URL}/resetPassword/${token}`;
+
+    const deleteOldLinks = await resetPasswordModel.deleteMany({
+      email: email,
+    });
 
     const TokenModel = new resetPasswordModel({
       email,
@@ -29,6 +34,11 @@ export const forgetpassword = async (req, res, next) => {
     });
     await TokenModel.save();
     await forgetmail(existinguser.email, link);
+
+    res.status(200).json({
+      success: true,
+      message: "a link is sent to the email of you.",
+    });
   } catch (error) {
     next(error);
   }
@@ -49,7 +59,7 @@ export const resetLink = async (req, res, next) => {
         .json({ message: "session expired or user dont exist." });
     }
 
-    const secret = env.JWT_temp_token + IDuser.password;
+    const secret = process.env.JWT_temp_token + IDuser.password;
 
     const jwtuser = jwt.verify(token, secret);
 
@@ -58,15 +68,14 @@ export const resetLink = async (req, res, next) => {
     IDuser.password = hashedpassword;
     await IDuser.save();
 
+
     const accesstoken = jwtfun({
       id: IDuser.id,
       role: IDuser.role,
-      status: IDuser.status,
     });
-    
+
     const refreshtoken = refreshjwtfun({
       id: IDuser.id,
-      role: IDuser.role,
     });
 
     res.cookie("accesstoken", accesstoken, {
@@ -74,7 +83,7 @@ export const resetLink = async (req, res, next) => {
       secure: process.env.Node_Env === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 30 * 60 * 1000, 
+      maxAge: 20 * 60 * 1000,
     });
     res.cookie("refreshtoken", refreshtoken, {
       httpOnly: true,

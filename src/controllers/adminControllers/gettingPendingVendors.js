@@ -12,7 +12,7 @@ export const gettingVendors = async (req, res, next) => {
 
     const vendors = await vendor
       .find({ status: statusFilter })
-      .populate("User", "email isEmailVerified")
+      .populate("userid", "email isEmailVerified")
       .sort({ createdAt: 1 })
       .skip(skip)
       .limit(limit);
@@ -31,18 +31,18 @@ export const gettingVendors = async (req, res, next) => {
 
 export const approaveVendor = async (req, res, next) => {
   try {
-    const { vendorID } = req.params;
+    const { id } = req.params;
     const { userId } = req.body;
 
-    if (!vendorID || userId) {
+    if (!id || !userId) {
       return res.status(400).json({
         success: false,
-        message: "the vendorId is required to perform the action.",
+        message: "the id is required to perform the action.",
       });
     }
 
-    const vendor = await vendor.findByIdAndUpdate(
-      { _id: vendorID },
+    const vendorstatus = await vendor.findByIdAndUpdate(
+      { _id: id },
       { status: "active" },
       { returnDocument: "after" },
     );
