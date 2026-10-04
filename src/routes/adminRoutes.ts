@@ -22,7 +22,7 @@ const router = express.Router();
 
 router.use(authenticate);
 
-router.post("/createCategory", authorize("vendor", "admin"), authorize("admin", "vendor"), createCategory);
+router.post("/createCategory", authorize("admin"), authorize("admin", "vendor"), createCategory);
 router.get("/getAllCategories", authorize("vendor", "admin"), getAllCategories);
 
 router.use(authorize("admin"));

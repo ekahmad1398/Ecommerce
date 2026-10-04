@@ -1,5 +1,5 @@
 import express from "express"
-import { checkout } from "../controllers/userControllers/checkout"
+import { checkout } from "../controllers/userControllers/checkout.js"
 import auth from '../middleware/auth.js'
 import authorize from "../middleware/role.js"
 

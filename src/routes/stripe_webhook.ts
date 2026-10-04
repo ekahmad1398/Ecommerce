@@ -1,25 +1,27 @@
 import Stripe from "stripe";
 import express from "express";
+import type { Request, Response } from "express";
 import subOrderSchema from "../models/orderItems.js";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+import Order from "../models/Order.js";
+import env from "../config.js";
+const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 const router = express.Router();
 
 router.post(
   "/webhook/stripe",
   express.raw({ type: "application/json" }),
-  async (req, res) => {
-    const sig = req.headers["stripe-signature"];
+  async (req: Request, res: Response) => {
+    const sig:any = req.headers["stripe-signature"];
     let event;
     try {
       event = Stripe.webhooks.constructEvent(
         req.body,
         sig,
-        process.env.webhook_secret,
+        env.STRIPE_WEBHOOK_SECRET,
       );
     } catch (error) {
       console.log(error);
-      res.status(400).json({ message: "Webhook signature error." });
+      return res.status(400).json({ message: "Webhook signature error." });
     }
 
     if (event.type === "checkout.session.completed") {
@@ -64,4 +66,4 @@ router.post(
   },
 );
 
-export default router
+export default router;

@@ -1,5 +1,5 @@
 import multer from "multer";
-import cloudinary from "../../config/cloudinary.js"
+import cloudinary from "../config/cloudinary.js"
 import streamifier from "streamifier"
 
 const storage = multer.memoryStorage();
@@ -35,7 +35,7 @@ export const uploadToCloudinary = (buffer) => {
   });
 };
 
-export const deleteFromCloudinary = async ({ publicId }) => {
+export const deleteFromCloudinary = async ( publicId ) => {
   try {
     if (!publicId) return null;
     const result = await cloudinary.uploader.destroy(publicId);

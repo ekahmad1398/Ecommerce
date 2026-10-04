@@ -1,8 +1,8 @@
-import category from "../../models/category";
+import category from "../../models/category.js";
 
 export const createCategory = async (req, res, next) => {
   try {
-    const { name, parentCategory, attributes } = req.body;
+    const { name, parentCategory} = req.body;
 
     const existingCategory = await category.findOne({
       name,
@@ -13,8 +13,7 @@ export const createCategory = async (req, res, next) => {
     }
     const newCategory = await category.create({
       name,
-      parentCategory: parentCategory || null,
-      attributes: attributes || [],
+      parentCategory: parentCategory || null
     });
     res.status(201).json({
       success: true,

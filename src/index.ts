@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
-import connectDB from "../config/db";
-import forwardToApp from "../config/ngrok.js";
+import connectDB from "./config/db.js";
+import forwardToApp from "./config/ngrok.js";
 import stripeWebhook from "./routes/stripe_webhook.js";
 import vendorRoutes from "./routes/vendorRoutes.js";
 import AuthRoutes from "./routes/authroutes.js";

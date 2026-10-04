@@ -6,12 +6,12 @@ import {
   otprequest,
   loginfun,
   logout,
-} from "../controllers/auth.js/signin&signup.js";
+} from "../controllers/auth/signin&signup.js";
 
 import {
   forgetpassword,
   resetLink,
-} from "../controllers/auth.js/forgetpass.js";
+} from "../controllers/auth/forgetpass.js";
 import authorize from "../middleware/auth.js";
 
 router.post("/createAccount", createAccount);

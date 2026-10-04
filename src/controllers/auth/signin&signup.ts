@@ -2,9 +2,10 @@ import user from "../../models/User.js";
 import OTP from "../../models/Otp.js";
 import crypto from "crypto";
 import jwtfun, { hashingpassword, refreshjwtfun } from "../../utils/jwthash.js";
-import { OTPMail } from "../../../config/mailtrapconfig.js";
+import { OTPMail } from "../../config/mailtrapconfig.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../../middleware/upload.js";
+import vendorSchema from "../../models/vendor.js";
 
 export const createAccount = async (req, res, next) => {
   try {
@@ -157,19 +158,43 @@ export const loginfun = async (req, res, next) => {
       return res.status(400).json({ message: "incorrect email or password" });
     }
 
-    const accesstoken = jwtfun({
-      id: User.id,
-      role: User.role,
-    });
-    const refreshtoken = refreshjwtfun({ id: User.id});
+    if (User.role === "vendor") {
+      const vendor = await vendorSchema
+        .findOne({ userid: User.id })
+        .select("_id")
+        .lean();
+      const vendorID = vendor._id.toString();
 
-    res.cookie("accesstoken", accesstoken, {
-      httpOnly: true,
-      secure: process.env.Node_Env === "production",
-      sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
-      path: "/",
-      maxAge: 20 * 60 * 1000,
-    });
+      const accesstoken = jwtfun({
+        id: User.id,
+        role: User.role,
+        vendorID
+      });
+
+      res.cookie("accesstoken", accesstoken, {
+        httpOnly: true,
+        secure: process.env.Node_Env === "production",
+        sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+        path: "/",
+        maxAge: 20 * 60 * 1000,
+      });
+    } else {
+      const accesstoken = jwtfun({
+        id: User.id,
+        role: User.role,
+      });
+
+      res.cookie("accesstoken", accesstoken, {
+        httpOnly: true,
+        secure: process.env.Node_Env === "production",
+        sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+        path: "/",
+        maxAge: 20 * 60 * 1000,
+      });
+    }
+
+    const refreshtoken = refreshjwtfun({ id: User.id });
+
     res.cookie("refreshtoken", refreshtoken, {
       httpOnly: true,
       secure: process.env.Node_Env === "production",

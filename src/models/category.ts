@@ -12,12 +12,6 @@ const data = new mongoose.Schema(
       ref: "category",
       default: null,
     },
-    attributes: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
   },
   { timestamps: true },
 );

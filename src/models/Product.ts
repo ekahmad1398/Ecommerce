@@ -18,6 +18,7 @@ const productSchema = new mongoose.Schema(
       uppercase: true,
       required: true,
       maxlength: 80,
+      unique:true
     },
     color: { type: String, trim: true, maxlength: 80, default: "ANY" },
     vendorId: {
@@ -29,6 +30,7 @@ const productSchema = new mongoose.Schema(
       {
         cloudinaryId: { type: String, required: true },
         publicId: { type: String, required: true },
+        _id: { type: mongoose.Schema.ObjectId, auto: true },
       },
     ],
     discount: { type: Number, default: 0, min: 0, max: 100 },
@@ -37,11 +39,33 @@ const productSchema = new mongoose.Schema(
     isDeleted: { type: Boolean, default: false, select: false },
     status: {
       type: String,
-      enum: ["archieved", "banned", "pending_review", "active"],
-      default: "pending_review",
+      enum: ["archieved", "banned", "active", "inactive"],
+      default: "active",
+    },
+    attributes: [
+      {
+        key: { type: String },
+        value: { type: String },
+        _id: { type: mongoose.Schema.ObjectId, auto: true },
+      },
+    ],
+  },
+  {
+    timestamps: true,
+    toJSON: {
+      transform: function (doc, ret) {
+        delete ret.isDeleted;
+        delete ret.__v;
+        if (Array.isArray(ret.images)) {
+          for (const image of ret.images) {
+            delete image.cloudinaryId;
+          }
+        }
+
+        return ret;
+      },
     },
   },
-  { timestamps: true },
 );
 
 productSchema.index({ name: 1 });
@@ -51,7 +75,7 @@ productSchema.index({ vendorId: 1, sku: 1 }, { unique: true });
 
 export default mongoose.model("product", productSchema);
 
-export function generateSKU({ brand, category, color }) {
+export function generateSKU({ name, brand = "GEN", color }) {
   const clean = (str) => {
     if (!str) return;
     return str
@@ -59,5 +83,5 @@ export function generateSKU({ brand, category, color }) {
       .substring(0, 3)
       .toUpperCase();
   };
-  return `${clean(brand)}-${clean(category)}-${clean(color)}`;
+  return `${clean(name)}-${clean(brand)}-${clean(color)}`;
 }

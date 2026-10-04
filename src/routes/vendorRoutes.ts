@@ -13,21 +13,20 @@ import {
   CreateVendorProduct,
   UpdateVendorProduct,
   deleteVendorProduct,
-  readProduct
+  readProduct,
 } from "../controllers/vendorControllers/vendorProduct.js";
 import authenticate from "../middleware/auth.js";
-import authorize from "../middleware/role.js"
+import authorize from "../middleware/role.js";
 import upload from "../middleware/upload.js";
 
 const router = express.Router();
 
-
 router.use(authenticate);
-router.post("/register", upload.single('companyimage'), registerVendor);
+router.post("/register", upload.single("companyimage"), registerVendor);
 router.use(authorize("vendor"));
 
-router.post("/CreateProduct", CreateVendorProduct);
-router.post("/UpdateProduct/:id", UpdateVendorProduct);
+router.post("/CreateProduct", upload.array("imagestoUpload", 3), CreateVendorProduct);
+router.post("/UpdateProduct/:id", upload.array("imagestoUpload",3), UpdateVendorProduct);
 router.delete("/deleteProduct/:id", deleteVendorProduct);
 router.get("/readProduct/:id", readProduct);
 router.get("/financeData", getVendorFinancialStatus);
