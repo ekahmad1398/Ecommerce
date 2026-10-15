@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import ProductSchema from "../../models/Product.js";
-import User from "../../models/User.js"
+import User from "../../models/User.js";
 
 export const FeedProducts = async (
   req: Request,
@@ -63,11 +63,13 @@ export const FeedProducts = async (
         storeSlug: vendor.storeSlug,
         price: product.price,
         stock: product.stock,
+        rating: product.rating,
+        discount: product.discount,
         companyName: vendor.companyName,
         storeName: vendor.name,
         categoryName: category.name,
         thumbNailImage: product.images[0],
-        attributes:product.attributes
+        attributes: product.attributes,
       };
     });
 
@@ -99,13 +101,11 @@ export const specificProduct = async (
       .lean();
 
     if (!product) {
-      res
-        .status(404)
-        .json({
-          success: false,
-          message:
-            "product not found or is no longer available on the marketplace",
-        });
+      res.status(404).json({
+        success: false,
+        message:
+          "product not found or is no longer available on the marketplace",
+      });
       return;
     }
 

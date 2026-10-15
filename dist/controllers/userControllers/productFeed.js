@@ -45,11 +45,13 @@ export const FeedProducts = async (req, res, next) => {
                 storeSlug: vendor.storeSlug,
                 price: product.price,
                 stock: product.stock,
+                rating: product.rating,
+                discount: product.discount,
                 companyName: vendor.companyName,
                 storeName: vendor.name,
                 categoryName: category.name,
                 thumbNailImage: product.images[0],
-                attributes: product.attributes
+                attributes: product.attributes,
             };
         });
         res.status(200).json({
@@ -72,9 +74,7 @@ export const specificProduct = async (req, res, next) => {
             .populate("vendorId", "storeDescription companyName storeSlug mobilenumber Companyimage")
             .lean();
         if (!product) {
-            res
-                .status(404)
-                .json({
+            res.status(404).json({
                 success: false,
                 message: "product not found or is no longer available on the marketplace",
             });
