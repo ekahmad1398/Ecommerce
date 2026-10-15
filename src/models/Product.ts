@@ -26,7 +26,7 @@ const productSchema = new mongoose.Schema(
     },
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Vendor",
+      ref: "vendor",
       required: true,
     },
     images: [
