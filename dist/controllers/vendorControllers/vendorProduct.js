@@ -31,8 +31,8 @@ export const CreateVendorProduct = async (req, res, next) => {
             for (const data of result) {
                 const optimizedImage = optimizefunction(data.secure_url);
                 imagesData.push({
-                    cloudinaryId: optimizedImage,
-                    publicId: data.public_id,
+                    cloudinaryId: data.public_id,
+                    publicId: optimizedImage,
                 });
             }
         }

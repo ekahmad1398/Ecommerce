@@ -31,7 +31,7 @@ const productSchema = new mongoose.Schema(
     },
     images: [
       {
-        cloudinaryId: { type: String, required: true },
+        cloudinaryId: { type: String, required: true, select: false },
         publicId: { type: String, required: true },
         _id: { type: mongoose.Schema.ObjectId, auto: true },
       },
@@ -56,6 +56,20 @@ const productSchema = new mongoose.Schema(
   {
     timestamps: true,
     toJSON: {
+      transform: function (doc: mongoose.Document, ret: Record<string, any>) {
+        delete ret.isDeleted;
+        delete ret.__v;
+
+        if (Array.isArray(ret.images)) {
+          for (const image of ret.images) {
+            delete image.cloudinaryId;
+          }
+        }
+
+        return ret;
+      },
+    },
+    toObject: {
       transform: function (doc: mongoose.Document, ret: Record<string, any>) {
         delete ret.isDeleted;
         delete ret.__v;
