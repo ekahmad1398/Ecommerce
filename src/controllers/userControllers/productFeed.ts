@@ -67,6 +67,7 @@ export const FeedProducts = async (
         storeName: vendor.name,
         categoryName: category.name,
         thumbNailImage: product.images[0],
+        attributes:product.attributes
       };
     });
 

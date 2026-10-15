@@ -49,6 +49,7 @@ export const FeedProducts = async (req, res, next) => {
                 storeName: vendor.name,
                 categoryName: category.name,
                 thumbNailImage: product.images[0],
+                attributes: product.attributes
             };
         });
         res.status(200).json({
