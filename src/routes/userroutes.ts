@@ -4,8 +4,8 @@ import auth from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.get('/products', auth, FeedProducts)
-router.get('/products/:id', auth, specificProduct)
+router.get('/products', FeedProducts)
+router.get('/products/:id', specificProduct)
 router.get("/userProfile", userProfile)
 
 export default router
