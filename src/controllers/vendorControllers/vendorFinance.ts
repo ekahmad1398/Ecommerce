@@ -1,49 +1,103 @@
+import type { Request, Response, NextFunction } from "express";
 import suborder from "../../models/orderItems.js";
-import Products from "../../models/Product.js";
 
-export const getVendorFinancialStatus = async (req, res, next) => {
+
+export const getVendorFinancialStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
-    const vendorID = req.user.vendorID;
-    const range = req.query;
+    const vendorID = (req as any).user.vendorID;
+    const range =
+      (req.query.range as "1Month" | "6Months" | "1Year" | "15Days") ?? null;
     const startDate = new Date();
-    let GroupStageID = {};
+    const previousStartDate = new Date();
+    let GroupStageID: Record<string, any> = {};
 
     if (range === "6Months") {
       startDate.setMonth(startDate.getMonth() - 6);
+      previousStartDate.setMonth(previousStartDate.getMonth() - 12);
       GroupStageID = {
         year: { $year: "$createdAt" },
         month: { $month: "$createdAt" },
       };
     } else if (range === "1Year") {
       startDate.setFullYear(startDate.getFullYear() - 1);
+      previousStartDate.setFullYear(previousStartDate.getFullYear() - 2);
       GroupStageID = {
         year: { $year: "$createdAt" },
         month: { $month: "$createdAt" },
       };
-    } else {
-      startDate.setDate(startDate.getDate() - 30);
+    } else if (range === "15Days") {
+      startDate.setDate(startDate.getDate() - 15);
+      previousStartDate.setDate(previousStartDate.getDate() - 30);
       GroupStageID = {
         year: { $year: "$createdAt" },
         month: { $month: "$createdAt" },
         day: { $dayOfMonth: "$createdAt" },
       };
+    } else if (range === "1Month") {
+      startDate.setDate(startDate.getDate() - 30);
+      previousStartDate.setDate(previousStartDate.getDate() - 60);
+      GroupStageID = {
+        year: { $year: "$createdAt" },
+        month: { $month: "$createdAt" },
+        day: { $dayOfMonth: "$createdAt" },
+      };
+    } else {
+      previousStartDate.setFullYear(1970);
+      startDate.setFullYear(1970);
+      GroupStageID = {};
     }
 
     const SalesData = await suborder.aggregate([
       {
         $match: {
           vendorID,
-          createdAt: { $gte: startDate },
+          createdAt: { $gte: previousStartDate },
         },
       },
       {
         $facet: {
-          totalsOfSales: [
+          totalcurrentSales: [
+            {
+              $match: {
+                createdAt: { $gte: startDate },
+              },
+            },
             {
               $group: {
                 _id: GroupStageID,
                 totalGrossSales: { $sum: "$subOrderTotal" },
-                totalNetEarnings: { $sum: { $sum: "$vendorNetEarned" } },
+                totalNetEarnings: { $sum: "$vendorNetEarned" },
+                totalOrders: { $sum: 1 },
+                pendingOrders: {
+                  $sum: { $cond: [{ $eq: ["$status", "shipped"] }, 1, 0] },
+                },
+                processingOrders: {
+                  $sum: { $cond: [{ $eq: ["$status", "processing"] }, 1, 0] },
+                },
+                deliveredOrders: {
+                  $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] },
+                },
+                cancelledOrders: {
+                  $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] },
+                },
+              },
+            },
+          ],
+          totalsPreviousSales: [
+            {
+              $match: {
+                createdAt: { $gte: previousStartDate, $lte: startDate },
+              },
+            },
+            {
+              $group: {
+                _id: GroupStageID,
+                totalGrossSales: { $sum: "$subOrderTotal" },
+                totalNetEarnings: { $sum: "$vendorNetEarned" },
                 totalOrders: { $sum: 1 },
                 pendingOrders: {
                   $sum: { $cond: [{ $eq: ["$status", "shipped"] }, 1, 0] },
@@ -89,10 +143,12 @@ export const getVendorFinancialStatus = async (req, res, next) => {
       },
     ]);
 
+    const result = SalesData[0] ?? { LastpaidOrders: [], totalsOfSales: [] };
+
     res.status(200).json({
       success: true,
-      LastOrders: SalesData.LastpaidOrders,
-      data: SalesData.totalsOfSales,
+      LastOrders: result.LastpaidOrders,
+      data: result.totalsOfSales,
     });
   } catch (error) {
     next(error);

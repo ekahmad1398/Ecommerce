@@ -1,14 +1,16 @@
 import multer from "multer";
-import cloudinary from "../config/cloudinary.js"
-import streamifier from "streamifier"
+import cloudinary from "../config/cloudinary.js";
+import streamifier from "streamifier";
+import { Request } from "express";
+import type { UploadApiResponse } from "cloudinary";
 
 const storage = multer.memoryStorage();
 
-const fileFilter = (req, file, callback) => {
+const fileFilter: multer.Options["fileFilter"] = (req, file, callback) => {
   if (file.mimetype.startsWith("image/")) {
     callback(null, true);
   } else {
-    callback(new Error("Only images are allowed to be uploaded."), false);
+    callback(new Error("Only images are allowed to be uploaded."));
   }
 };
 
@@ -20,8 +22,10 @@ const upload = multer({
 
 export default upload;
 
-export const uploadToCloudinary = (buffer) => {
-  return new Promise((resolve, reject) => {
+export const uploadToCloudinary = (
+  buffer: Buffer,
+): Promise<UploadApiResponse | undefined> => {
+  return new Promise<UploadApiResponse | undefined>((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: "photo-api",
@@ -35,7 +39,9 @@ export const uploadToCloudinary = (buffer) => {
   });
 };
 
-export const deleteFromCloudinary = async ( publicId ) => {
+export const deleteFromCloudinary = async (
+  publicId: string | null | undefined,
+) => {
   try {
     if (!publicId) return null;
     const result = await cloudinary.uploader.destroy(publicId);

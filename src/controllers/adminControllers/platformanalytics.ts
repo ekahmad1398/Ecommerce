@@ -1,53 +1,139 @@
+import type { NextFunction, Request, Response } from "express";
 import orderItems from "../../models/orderItems.js";
 import user from "../../models/User.js";
 import vendor from "../../models/vendor.js";
-export const getAdminDashboard = async (req, res, next) => {
+
+interface monthlyRevenueChart {
+  _id: {
+    year: number;
+    month: number;
+  };
+  monthlyEarning: number;
+}
+
+interface financialStatus {
+  totalGMV: number;
+  totalPlatformRevenue: number;
+}
+
+interface aggregateResult {
+  financialStatus: financialStatus;
+  pendingPayout: { PendingPayoutMoney: number };
+  monthlyRevenueChart: monthlyRevenueChart[];
+}
+
+export const getAdminDashboard = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
-    const piplineForFinance = await orderItems.aggregate([
-      {
-        $match: {
-          status: { $in: ["processing", "shipped", "delivered"] },
-        },
-      },
-      {
-        $facet: {
-          financialStats: [
-            {
-              $group: {
-                _id: null,
-                totalGMV: {
-                  $sum: "$subOrderTotal",
-                },
-                totalPlatformRevenue: { $sum: "$platformComissionCut" },
-                averageOrderValue: {
-                  $avg: "$subOrderTotal",
-                },
-              },
+    const [dashboardData, totalCustomers, totalActiveVendors, pendingVendors] =
+      await Promise.all([
+        orderItems.aggregate<aggregateResult>([
+          {
+            $match: {
+              status: { $in: ["processing", "shipped", "delivered"] },
             },
-          ],
-          monthlyRevenueChart: [
-            {
-              $group: {
-                _id: {
-                  year: { $year: "$createdAt" },
-                  month: { $month: "$createdAt" },
+          },
+          {
+            $facet: {
+              financialStatus: [
+                {
+                  $group: {
+                    _id: null,
+                    totalGMV: {
+                      $sum: "$subOrderTotal",
+                    },
+                    totalPlatformRevenue: { $sum: "$platformComissionCut" },
+                  },
                 },
-                monthlyEarning: { $sum: "$platformComissionCut" },
-              },
+              ],
+              pendingPayout: [
+                {
+                  $match: {
+                    releasepayoutDate: { $gte: Date.now() },
+                  },
+                },
+                {
+                  $group: {
+                    _id: null,
+                    PendingPayoutMoney: { $sum: "$vendorNetEarned" },
+                  },
+                },
+              ],
+              monthlyRevenueChart: [
+                {
+                  $group: {
+                    _id: {
+                      year: { $year: "$createdAt" },
+                      month: { $month: "$createdAt" },
+                    },
+                    monthlyEarning: { $sum: "$platformComissionCut" },
+                  },
+                },
+                { $sort: { "_id.year": -1, "_id.month": -1 } },
+                { $limit: 12 },
+              ],
+              VendorPayout: [
+                {
+                  $match: {
+                    payoutReleaseDate: { $gte: "$payoutReleaseDate" },
+                  },
+                },
+                { $sort: { payoutReleaseDate: 1 } },
+                {
+                  $limit: 5,
+                },
+                {
+                  $group: {
+                    _id: "$vendorID",
+                    VendorPayoutMoney: { $sum: "$vendorNetEarned" },
+                  },
+                },
+                {
+                  $lookup: {
+                    from: "vendor",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "vendorData",
+                  },
+                },
+                {
+                  $unwind: "$vendorData",
+                },
+                {
+                  $project: {
+                    companyName: 1,
+                    Companyimage: 1,
+                    VendorPayoutMoney: 1,
+                    "$vendorData.userid": 1,
+                    "$vendorData.country": 1,
+                  },
+                },
+              ],
             },
-            { $sort: { "_id.year": -1, "_id.month": -1 } },
-            { $limit: 12 },
-          ],
-        },
-      },
-    ]);
-    const gmv = piplineForFinance.financialStats.totalGMV || 0;
-    const PlatformRevenue =
-      piplineForFinance.financialStats.totalPlatformRevenue || 0;
-    const totalCustomers = await user.countDocuments({ role: "user" });
-    const totalActiveVendors = await vendor.countDocuments({
-      status: "active",
-    });
+          },
+        ]),
+        user.countDocuments({ role: "user" }),
+        vendor.countDocuments({
+          status: "active",
+        }),
+        vendor
+          .find({ status: "pending" })
+          .select("name companyName createdAt")
+          .sort({ createdAt: 1 })
+          .limit(5),
+      ]);
+
+    const financialSummary = dashboardData?.[0]?.financialStatus ?? {
+      totalGMV: 0,
+      totalPlatformRevenue: 0,
+      averageOrderValue: 0,
+    };
+
+    const gmv = financialSummary.totalGMV;
+    const PlatformRevenue = financialSummary.totalPlatformRevenue;
 
     res.status(200).json({
       success: true,
@@ -57,7 +143,9 @@ export const getAdminDashboard = async (req, res, next) => {
         PlatformRevenue,
         registeredCustomerCount: totalCustomers,
       },
-      chartData: piplineForFinance,
+      PendingVendors: pendingVendors,
+      chartData: dashboardData?.[0]?.monthlyRevenueChart,
+      pendingPayout: dashboardData?.[0]?.pendingPayout,
     });
   } catch (error) {
     next(error);

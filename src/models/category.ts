@@ -12,6 +12,10 @@ const data = new mongoose.Schema(
       ref: "category",
       default: null,
     },
+    Image:{
+      type:String,
+      required:true,
+    }
   },
   { timestamps: true },
 );

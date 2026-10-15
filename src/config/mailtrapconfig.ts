@@ -1,8 +1,8 @@
 import Nodemailer from "nodemailer";
 import { MailtrapTransport } from "mailtrap";
+import env from "../config.js";
 
-
-const TOKEN = process.env.MAILTRAP_TOKEN
+const TOKEN = env.MAILTRAP_TOKEN;
 const transport = Nodemailer.createTransport(
   MailtrapTransport({
     token: TOKEN,
@@ -14,9 +14,9 @@ const sender = {
 };
 
 export const welcomeemail = async (
-  recipient,
-  subject,
-  body,
+  recipient: string,
+  subject: string,
+  body: string,
 ) => {
   const recipients = [recipient];
   try {
@@ -33,16 +33,12 @@ export const welcomeemail = async (
   }
 };
 
-
-export const OTPMail = async (
-  recipient,
-  OTP,
-) => {
+export const OTPMail = async (recipient: string, OTP: string) => {
   try {
     const result = await transport.sendMail({
       from: sender,
-      to: recipient, 
-      subject:"OTP Request",
+      to: recipient,
+      subject: "OTP Request",
       text: `Your 6-digit security code is: ${OTP}`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -59,23 +55,19 @@ export const OTPMail = async (
       },
     });
 
-    return { success: true};
+    return { success: true };
   } catch (error) {
     console.error("Nodemailer transmission failed:", error);
     return { success: false, error };
   }
 };
 
-
-export const forgetmail = async (
-  recipient,
-  link,
-) => {
+export const forgetmail = async (recipient: string, link: string) => {
   try {
     const result = await transport.sendMail({
       from: sender,
-      to: recipient, 
-      subject:"link Request",
+      to: recipient,
+      subject: "link Request",
       text: `Your security link is here`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -92,8 +84,7 @@ export const forgetmail = async (
       },
     });
 
-    return {succes:true}
-
+    return { succes: true };
   } catch (error) {
     console.error("Nodemailer transmission failed:", error);
     return { success: false, error };

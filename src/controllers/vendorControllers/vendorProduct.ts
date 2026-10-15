@@ -47,9 +47,9 @@ export const CreateVendorProduct = async (
     let imagesData = [];
 
     if (incomingImages.length > 0) {
-      const result = await Promise.all(
+      const result = (await Promise.all(
         incomingImages.map((file) => uploadToCloudinary(file.buffer)),
-      );
+      )) as Array<{ secure_url: string; public_id: string }>;
 
       for (const data of result) {
         const optimizedImage = optimizefunction(data.secure_url);
@@ -67,7 +67,7 @@ export const CreateVendorProduct = async (
     const createdSKU = generateSKU({
       name: validatedData.name,
       brand: validatedData.brand,
-      color: validatedData.color,
+      color: validatedData.colors[0],
     });
 
     let attribueteArray = [];
@@ -94,8 +94,8 @@ export const CreateVendorProduct = async (
       categoryID: validatedData.categoryID,
       stock: validatedData.stock,
       price: validatedData.price,
-      discount: validatedData.discount,
-      color: validatedData.color,
+      discount: validatedData.discount ?? 0,
+      colors: validatedData.colors,
       sku: createdSKU,
       vendorId: vendorID,
       images: imagesData,
@@ -138,12 +138,10 @@ export const UpdateVendorProduct = async (
 
     const clientImages = validatedData.images ?? [];
     const imagesToDelete = product.images.filter(
-      (mongoImages: {
-        publicId?: string;
-        cloudinaryId?: string;
-        _id?: string;
-      }) =>
-        !clientImages?.some((clientImg) => clientImg._id === mongoImages._id),
+      (mongoImages) =>
+        !clientImages?.some(
+          (clientImg) => String(clientImg._id) === String(mongoImages._id),
+        ),
     );
 
     if (imagesToDelete.length > 0) {
@@ -154,9 +152,9 @@ export const UpdateVendorProduct = async (
 
     let newUploadedImages = [];
     if (newImages.length > 0) {
-      const result = await Promise.all(
+      const result = (await Promise.all(
         newImages.map((file) => uploadToCloudinary(file.buffer)),
-      );
+      )) as Array<{ secure_url: string; public_id: string }>;
       for (const data of result) {
         newUploadedImages.push({
           cloudinaryId: data.secure_url,
@@ -175,7 +173,7 @@ export const UpdateVendorProduct = async (
         stock: validatedData.stock,
         categoryID: validatedData.categoryID,
         brand: validatedData.brand,
-        color: validatedData.color,
+        colors: validatedData.colors,
         discount: validatedData.discount,
         status: validatedData.status,
         images: finalTotalImages,

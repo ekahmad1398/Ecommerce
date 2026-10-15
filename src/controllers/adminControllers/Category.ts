@@ -1,6 +1,8 @@
+import { NextFunction, Request, Response } from "express";
 import category from "../../models/category.js";
+import Product from "../../models/Product.js";
 
-export const createCategory = async (req, res, next) => {
+export const createCategory = async (req:Request, res:Response, next:NextFunction) => {
   try {
     const { name, parentCategory} = req.body;
 
@@ -25,7 +27,7 @@ export const createCategory = async (req, res, next) => {
   }
 };
 
-export const getAllCategories = async (req, res, next) => {
+export const getAllCategories = async (req:Request, res:Response, next:NextFunction) => {
   try {
     const categories = await category
       .find()
@@ -43,10 +45,10 @@ export const getAllCategories = async (req, res, next) => {
   }
 };
 
-export const deleteCategory = async (req, res, next) => {
+export const deleteCategory = async (req:Request, res:Response, next:NextFunction) => {
   try {
     const { id } = req.params;
-    const productCategory = await product.findOne({ category: id });
+    const productCategory = await Product.findOne({ category: id });
     if (productCategory) {
       return res.status(400).json({
         success: false,

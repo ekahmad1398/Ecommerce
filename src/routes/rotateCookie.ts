@@ -1,6 +1,7 @@
 import express from "express";
 import User from "../models/User.js";
 import vendor from "../models/vendor.js";
+import jwtfun from "../utils/jwthash.js";
 
 const router = express.Router();
 
@@ -26,27 +27,33 @@ router.get("/refreshShortTermToken", async (req, res, next) => {
         .json({ success: false, message: "user is banned" });
     }
 
+    let accesstoken: string;
     if (user.role === "vendor") {
       const vendorID = await vendor
         .findOne({ userid: user.id })
         .select("_id")
         .lean();
-      const accesstoken = jwtfun({
-        id: User.id,
-        role: User.role,
-        vendorID: vendorID._id,
+      if (!vendorID) {
+        return res
+          .status(404)
+          .json({ success: false, message: "vendor not found" });
+      }
+      accesstoken = jwtfun({
+        id: user.id,
+        role: user.role,
+        vendorID: vendorID._id.toString(),
       });
     } else {
-      const accesstoken = jwtfun({
-        id: User.id,
-        role: User.role,
+      accesstoken = jwtfun({
+        id: user.id,
+        role: user.role,
       });
     }
 
     res.cookie("accesstoken", accesstoken, {
       httpOnly: true,
       secure: process.env.Node_Env === "production",
-      sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+      sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
       path: "/",
       maxAge: 20 * 60 * 1000,
     });
@@ -55,4 +62,4 @@ router.get("/refreshShortTermToken", async (req, res, next) => {
   }
 });
 
-export default router
+export default router;

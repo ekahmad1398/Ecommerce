@@ -20,7 +20,10 @@ const productSchema = new mongoose.Schema(
       maxlength: 80,
       unique:true
     },
-    color: { type: String, trim: true, maxlength: 80, default: "ANY" },
+    colors: {
+      type: [String],
+      default: ["ANY"],
+    },
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vendor",
@@ -53,9 +56,10 @@ const productSchema = new mongoose.Schema(
   {
     timestamps: true,
     toJSON: {
-      transform: function (doc, ret) {
+      transform: function (doc: mongoose.Document, ret: Record<string, any>) {
         delete ret.isDeleted;
         delete ret.__v;
+
         if (Array.isArray(ret.images)) {
           for (const image of ret.images) {
             delete image.cloudinaryId;
@@ -69,19 +73,31 @@ const productSchema = new mongoose.Schema(
 );
 
 productSchema.index({ name: 1 });
-productSchema.index({ category: 1 });
+productSchema.index({ categoryID: 1 });
 productSchema.index({ vendorId: 1, status: 1, stock: 1 });
 productSchema.index({ vendorId: 1, sku: 1 }, { unique: true });
 
 export default mongoose.model("product", productSchema);
 
-export function generateSKU({ name, brand = "GEN", color }) {
-  const clean = (str) => {
-    if (!str) return;
+export function generateSKU({
+  name,
+  brand = "GEN",
+  color,
+}: {
+  name?: string;
+  brand?: string;
+  color?: string;
+}) {
+  const clean = (str?: string): string => {
+    if (!str) return "";
+
     return str
       .replace(/[^a-zA-Z0-9]/g, "")
       .substring(0, 3)
       .toUpperCase();
   };
-  return `${clean(name)}-${clean(brand)}-${clean(color)}`;
+
+  return [clean(name), clean(brand), clean(color)]
+    .filter(Boolean)
+    .join("-");
 }

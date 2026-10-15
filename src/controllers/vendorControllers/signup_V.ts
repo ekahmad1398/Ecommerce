@@ -1,9 +1,10 @@
+import type { NextFunction, Request, Response } from "express";
 import { uploadToCloudinary } from "../../middleware/upload.js";
 import Vendor from "../../models/vendor.js";
 
-export const registerVendor = async (req, res, next) => {
+export const registerVendor = async (req:Request, res:Response, next:NextFunction) => {
   try {
-    const userId = req.user.id;
+    const userId = (req as any).user.id;
     const existingUser = await Vendor.findOne({ userid: userId });
     if (existingUser) {
       res
@@ -11,7 +12,7 @@ export const registerVendor = async (req, res, next) => {
         .json({ success: false, message: "Vendor already exists." });
     }
 
-    const companyImage = req.file;
+    const companyImage = (req as any).file;
 
     if (!companyImage) {
       res.status(400).json({
@@ -20,16 +21,40 @@ export const registerVendor = async (req, res, next) => {
       });
     }
 
-    const { name, companyName, lastName, country, mobilenumber, storeDescription, storeSlug } = req.body;
+    const {
+      name,
+      companyName,
+      lastName,
+      country,
+      mobilenumber,
+      storeDescription,
+      storeSlug,
+    } = req.body;
 
-    if(!name, !companyName, !lastName, !country, !mobilenumber, !storeDescription, !storeSlug){
-      return res.status(400).json({success:false, message:"all fields are required"})
+    if (
+      !name ||
+      !companyName ||
+      !lastName ||
+      !country ||
+      !mobilenumber ||
+      !storeDescription ||
+      !storeSlug
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, message: "all fields are required" });
     }
 
-    const image = {};
+    const image: { cloudinaryId: string; publicId: string } = {
+      cloudinaryId: "",
+      publicId: "",
+    };
 
     if (companyImage) {
-      const result = await uploadToCloudinary(req.file.buffer);
+      const result = (await uploadToCloudinary((req as any).file.buffer)) as {
+        secure_url: string;
+        public_id: string;
+      };
       image.cloudinaryId = result.secure_url;
       image.publicId = result.public_id;
     }
@@ -57,9 +82,9 @@ export const registerVendor = async (req, res, next) => {
   }
 };
 
-export const getVendorProfile = async (req, res, next) => {
+export const getVendorProfile = async (req:Request, res:Response, next:NextFunction) => {
   try {
-    const userId = req.user.vendorID;
+    const userId = (req as any).user.vendorID;
     const vendor = await Vendor.findById(userId);
 
     if (!vendor) {

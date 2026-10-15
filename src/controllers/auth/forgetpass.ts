@@ -1,12 +1,20 @@
-import bcrypt from "bcryptjs";
 import user from "../../models/User.js";
 import jwt from "jsonwebtoken";
 import { forgetmail } from "../../config/mailtrapconfig.js";
-import { hashingpassword, resetjwtfun } from "../../utils/jwthash.js";
+import jwtfun, {
+  hashingpassword,
+  refreshjwtfun,
+  resetjwtfun,
+} from "../../utils/jwthash.js";
 import resetPasswordModel from "../../models/ResetLinkPass.js";
 import ResetLinkPass from "../../models/ResetLinkPass.js";
+import type { Request, Response, NextFunction } from "express";
 
-export const forgetpassword = async (req, res, next) => {
+export const forgetpassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { email } = req.body;
     const existinguser = await user.findOne({ email, isEmailVerified: true });
@@ -44,9 +52,16 @@ export const forgetpassword = async (req, res, next) => {
   }
 };
 
-export const resetLink = async (req, res, next) => {
+export const resetLink = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const { password, email } = req.body;
-  const token = req.params.token;
+  const token = Array.isArray(req.params.token)
+    ? req.params.token[0]
+    : req.params.token;
+
   try {
     if (!password || !token || !email) {
       return res.status(400).json({ message: "all fields are required" });
@@ -67,7 +82,6 @@ export const resetLink = async (req, res, next) => {
 
     IDuser.password = hashedpassword;
     await IDuser.save();
-
 
     const accesstoken = jwtfun({
       id: IDuser.id,

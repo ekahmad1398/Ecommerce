@@ -3,16 +3,18 @@ import Order from "../../models/Order.js";
 import ProducSchema from "../../models/Product.js";
 import subOrderItems from "../../models/orderItems.js";
 import Stripe from "stripe";
+import env from "../../config.js";
+import { NextFunction, Request, Response } from "express";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-export const checkout = async (req, res, next) => {
+const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+export const checkout = async (req:Request, res:Response, next:NextFunction) => {
   const dbSession = await mongoose.startSession();
   dbSession.startTransaction();
   try {
-    const customerID = req.user.id;
+    const customerID = (req as any).user.id;
     const { shippingAddress, CartItems, paymentMethod } = req.body;
 
-    const allowedMethods = ["Stripe_Card", "PAYPAL", "COD"];
+    const allowedMethods = ["Stripe_Card", "COD"];
     if (!allowedMethods.includes(paymentMethod)) {
       return res.status(400).json({
         success: false,
@@ -32,7 +34,15 @@ export const checkout = async (req, res, next) => {
     }
 
     let totalPrice = 0;
-    const vendorGrouptedItems = {};
+    const vendorGrouptedItems: Record<
+      string,
+      Array<{
+        productID: mongoose.Types.ObjectId;
+        quantity: number;
+        price: number;
+        subtotal: number;
+      }>
+    > = {};
     const lineItems = [];
 
     for (const item of CartItems) {
@@ -80,22 +90,19 @@ export const checkout = async (req, res, next) => {
     }
 
     if (paymentMethod === "COD") {
-      const parentOrder = await Order.create(
-        {
-          customerID,
-          totalPrice,
-          paymentMethod: "cash_on_delievery",
-          paymentStatus: "processing",
-          shippingAddress,
-        },
-        { session: dbSession },
-      );
+      const parentOrder = new Order({
+        customerID,
+        totalPrice,
+        paymentMethod: "cash_on_delievery",
+        paymentStatus: "processing",
+        shippingAddress,
+      });
+      await parentOrder.save({ session: dbSession });
       const subOrderPromises = Object.keys(vendorGrouptedItems).map(
         async (vendorID) => {
           const itemList = vendorGrouptedItems[vendorID];
           const subtotal = itemList.reduce((sum, i) => sum + i.subtotal, 0);
-          return await subOrderItems.create(
-            {
+          const subOrder = new subOrderItems({
               ParentorderID: parentOrder._id,
               vendorID,
               items: itemList,
@@ -103,9 +110,8 @@ export const checkout = async (req, res, next) => {
               vendorNetEarned: Number((Number(subtotal) * 0.9).toFixed(2)),
               subOrderTotal: Number(subtotal.toFixed(2)),
               status: "processing",
-            },
-            { session: dbSession },
-          );
+            });
+          return await subOrder.save({ session: dbSession });
         },
       );
 
@@ -122,32 +128,28 @@ export const checkout = async (req, res, next) => {
     }
 
     if (paymentMethod === "Stripe_Card") {
-      const parentOrder = await Order.create(
-        {
-          customerID,
-          totalPrice,
-          paymentMethod: "card",
-          shippingAddress,
-        },
-        { session: dbSession },
-      );
+      const parentOrder = new Order({
+        customerID,
+        totalPrice,
+        paymentMethod: "card",
+        shippingAddress,
+      });
+      await parentOrder.save({ session: dbSession });
 
       const subOrderPromises = Object.keys(vendorGrouptedItems).map(
         async (vendorID) => {
           const itemList = vendorGrouptedItems[vendorID];
-          const subtotal = itemList.reduce((sum, i) => sum + i.subtotal, 0);
-          return await subOrderItems.create(
-            {
-              ParentorderID: parentOrder._id,
-              vendorID,
-              items: itemList,
-              platformComissionCut: 0,
-              vendorNetEarned: 0,
-              subOrderTotal: Number(subtotal.toFixed(2)),
-              status: "pending",
-            },
-            { session: dbSession },
-          );
+          const subtotal = itemList.reduce((sum: any, i: { subtotal: any; }) => sum + i.subtotal, 0);
+          const subOrder = new subOrderItems({
+            ParentorderID: String((parentOrder as any)._id),
+            vendorID,
+            items: itemList,
+            platformComissionCut: 0,
+            vendorNetEarned: 0,
+            subOrderTotal: Number(subtotal.toFixed(2)),
+            status: "pending",
+          });
+          return await subOrder.save({ session: dbSession });
         },
       );
       await Promise.all(subOrderPromises);
@@ -164,7 +166,7 @@ export const checkout = async (req, res, next) => {
         shipping_address_collection: { allowed_countries: ["US", "CA"] },
         metadata: {
           customerId: customerID,
-          ParentorderID: parentOrder._id,
+          ParentorderID: String((parentOrder as any)._id),
         },
       });
 

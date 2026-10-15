@@ -1,19 +1,36 @@
 import Product from "../../models/Product.js";
+import type { NextFunction, Response, Request } from "express";
+interface criteria {
+  vendorId: any;
+  status: string;
+  isDeleted: boolean;
+  stock?: { $gte?: number; $gt?: number; $lte?: number };
+}
 
-export const getvendorLogisticData = async (req, res, next) => {
+export const getvendorLogisticData = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
-    const vendorID = req.user.vendorID;
-    const stockFilter = req.query.stock ?? "all";
+    const vendorID = (req as any).user.vendorID;
+    const stockFilter = (req as any).query.stock ?? "all";
     const totalProducts = await Product.countDocuments({
       vendorID,
       status: "active",
     });
-    const limit = Math.min(Math.max(Number(req.query.limit || 10, 1)), 50);
+    const limit = Math.min(
+      Math.max(Number((req as any).query.limit || 10)),
+      50,
+    );
     const totalPages = Math.ceil(totalProducts / limit);
-    const page = Math.min(Math.max(Number(req.query.page) || 1, 1), totalPages);
+    const page = Math.min(
+      Math.max(Number((req as any).query.page) || 1, 1),
+      totalPages,
+    );
     const skip = (page - 1) * limit;
 
-    const matchCriteria = {
+    const matchCriteria: criteria = {
       vendorId: vendorID,
       status: "active",
       isDeleted: false,
@@ -28,7 +45,7 @@ export const getvendorLogisticData = async (req, res, next) => {
         $facet: {
           products: [
             {
-              $match: { matchCriteria },
+              $match: matchCriteria,
             },
             {
               $sort: { stock: 1 },
@@ -100,10 +117,12 @@ export const getvendorLogisticData = async (req, res, next) => {
       },
     ]);
 
+    const stockSummary = stockData[0] ?? { products: [], totalStatuses: [] };
+
     res.status(200).json({
       success: true,
-      products: stockData.products,
-      statuses: stockData.totalStatuses,
+      products: stockSummary.products,
+      statuses: stockSummary.totalStatuses,
       currentPage: page,
       totalPages,
     });

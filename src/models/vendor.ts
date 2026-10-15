@@ -31,6 +31,7 @@ const vendorSchema = new Schema(
 );
 
 vendorSchema.index({ userid: -1, status: 1 });
-vendorSchema.index({ name: 1 });
+vendorSchema.index({ name: -1, companyName:-1 });
+vendorSchema.index({ storeSlug:-1 });
 
 export default model("vendor", vendorSchema);

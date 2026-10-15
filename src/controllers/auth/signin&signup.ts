@@ -6,11 +6,30 @@ import { OTPMail } from "../../config/mailtrapconfig.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../../middleware/upload.js";
 import vendorSchema from "../../models/vendor.js";
+import { NextFunction, Request, Response } from "express";
 
-export const createAccount = async (req, res, next) => {
+interface iamgeReturn {
+  secure_url: string;
+  public_id: string;
+}
+
+interface newUser {
+  name: any;
+  email: any;
+  password: string;
+  status: string;
+  profileImage?: string;
+  Cloudinary_ID?: string;
+}
+
+export const createAccount = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { name, password, email } = req.body;
-    const profileImage = req?.file;
+    const RprofileImage = req?.file;
 
     if (!name || !password || !email) {
       return res
@@ -29,8 +48,10 @@ export const createAccount = async (req, res, next) => {
       existinguser.password = hashedpassword;
       existinguser.status = "inactive";
 
-      if (profileImage) {
-        const result = await uploadToCloudinary(req.file.buffer);
+      if (RprofileImage) {
+        const result = (await uploadToCloudinary(
+          RprofileImage.buffer,
+        )) as iamgeReturn;
         existinguser.profileImage = result.secure_url;
         existinguser.Cloudinary_ID = result.public_id;
       }
@@ -41,15 +62,17 @@ export const createAccount = async (req, res, next) => {
         return res.status(400).json({ message: "User already exists" });
       }
 
-      const newUserData = {
+      const newUserData:newUser = {
         name: name,
         email: cleanemail,
         password: hashedpassword,
         status: "inactive",
       };
 
-      if (profileImage) {
-        const result = await uploadToCloudinary(req.file.buffer);
+      if (RprofileImage) {
+        const result = (await uploadToCloudinary(
+          RprofileImage.buffer,
+        )) as iamgeReturn;
         newUserData.profileImage = result.secure_url;
         newUserData.Cloudinary_ID = result.public_id;
       }
@@ -74,7 +97,11 @@ export const createAccount = async (req, res, next) => {
   }
 };
 
-export const otprequest = async (req, res, next) => {
+export const otprequest = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { email, clientOTP } = req.body;
 
@@ -117,14 +144,14 @@ export const otprequest = async (req, res, next) => {
     res.cookie("accesstoken", accesstoken, {
       httpOnly: false,
       secure: process.env.Node_Env === "production",
-      sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+      sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
       path: "/",
       maxAge: 20 * 60 * 1000,
     });
     res.cookie("refreshtoken", refreshtoken, {
       httpOnly: false,
       secure: process.env.Node_Env === "production",
-      sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+      sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 30,
     });
@@ -138,7 +165,11 @@ export const otprequest = async (req, res, next) => {
   }
 };
 
-export const loginfun = async (req, res, next) => {
+export const loginfun = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { email, password } = req.body;
     const cleanemail =
@@ -163,18 +194,21 @@ export const loginfun = async (req, res, next) => {
         .findOne({ userid: User.id })
         .select("_id")
         .lean();
+      if (!vendor) {
+        return res.status(404).json({ message: "vendor profile not found" });
+      }
       const vendorID = vendor._id.toString();
 
       const accesstoken = jwtfun({
         id: User.id,
         role: User.role,
-        vendorID
+        vendorID: vendorID as any,
       });
 
       res.cookie("accesstoken", accesstoken, {
         httpOnly: true,
         secure: process.env.Node_Env === "production",
-        sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+        sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
         path: "/",
         maxAge: 20 * 60 * 1000,
       });
@@ -187,7 +221,7 @@ export const loginfun = async (req, res, next) => {
       res.cookie("accesstoken", accesstoken, {
         httpOnly: true,
         secure: process.env.Node_Env === "production",
-        sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+        sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
         path: "/",
         maxAge: 20 * 60 * 1000,
       });
@@ -198,7 +232,7 @@ export const loginfun = async (req, res, next) => {
     res.cookie("refreshtoken", refreshtoken, {
       httpOnly: true,
       secure: process.env.Node_Env === "production",
-      sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+      sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 30,
     });
@@ -209,18 +243,18 @@ export const loginfun = async (req, res, next) => {
   }
 };
 
-export const logout = async (req, res) => {
+export const logout = async (req: Request, res: Response) => {
   res.clearCookie("accesstoken", {
     httpOnly: true,
     secure: process.env.Node_Env === "production",
-    sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+    sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
     path: "/",
   });
 
   res.clearCookie("refreshtoken", {
     httpOnly: true,
     secure: process.env.Node_Env === "production",
-    sameSite: process.env.Node_Env === "production" ? "strice" : "lax",
+    sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
     path: "/",
   });
 

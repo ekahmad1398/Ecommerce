@@ -19,8 +19,8 @@ const cronWorker = async () => {
         .session(session);
       if (expiredSubOrders.length === 0) return;
 
-      for (const subOrder of expiredSubOrders) {
-        for (const item of subOrder.items) {
+      for (const expiredSubOrder of expiredSubOrders) {
+        for (const item of expiredSubOrder.items) {
           await Product.findByIdAndUpdate(
             item.productID,
             {
@@ -29,9 +29,9 @@ const cronWorker = async () => {
             { session },
           );
         }
-        await subOrder.findByIdAndDelete({ _id: subOrder._id }, { session });
+        await subOrder.deleteOne({ _id: expiredSubOrder._id }, { session });
         await Order.findByIdAndDelete(
-          { _id: subOrder.ParentorderID },
+          { _id: expiredSubOrder.ParentorderID },
           { session },
         );
       }

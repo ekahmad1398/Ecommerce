@@ -1,6 +1,9 @@
+import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import env from "../config.js";
 
-const auth = async (req, res, next) => {
+
+const auth = async (req:Request, res:Response, next:NextFunction) => {
 
   const authcookie = req.cookies.accesstoken;
   if (!authcookie) {
@@ -10,9 +13,9 @@ const auth = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(authcookie, process.env.JWT_temp_token);
+    const decoded = jwt.verify(authcookie, env.JWT_temp_token);
 
-    req.user = decoded
+    (req as any).user = decoded
 
     next();
   } catch (error) {

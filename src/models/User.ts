@@ -3,24 +3,37 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 60 },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
     password: { type: String, required: true },
-    role: { type: String, enum: ["user", "admin","vendor"], default: "user" },
+    role: { type: String, enum: ["user", "admin", "vendor"], default: "user" },
     isEmailVerified: { type: Boolean, default: false },
     profileImage: { type: String, default: null },
-    Cloudinary_ID:{type:String, default:null},
+    Cloudinary_ID: { type: String, default: null },
     addresses: [
       {
         city: { type: String, default: null },
         country: { type: String, default: null },
         postalCode: { type: String, default: null },
         phoneNumber: { type: String, default: null },
-        created_at: { type: Date, default: Date.now }
-      }
+        created_at: { type: Date, default: Date.now },
+      },
     ],
-    status: { type: String, enum: ["active", "inactive", "blocked"], default: "inactive" }
+    status: {
+      type: String,
+      enum: ["active", "inactive", "blocked"],
+      default: "inactive",
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
+
+userSchema.index({ name: 1, email: -1 });
+userSchema.index({ email: -1 });
 
 export default mongoose.model("User", userSchema);

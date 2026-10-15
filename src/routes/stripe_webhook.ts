@@ -26,7 +26,18 @@ router.post(
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      const ParentorderID = session.metadata.ParentorderID;
+      const ParentorderID = session.metadata?.ParentorderID;
+      if (!ParentorderID) {
+        return res.status(400).json({ message: "Order ID is unavailable." });
+      }
+
+      if (typeof session.payment_intent !== "string") {
+        return res.status(400).json({ message: "Payment intent is unavailable." });
+      }
+
+      if (session.amount_total === null || session.amount_total <= 0) {
+        return res.status(400).json({ message: "Session total is unavailable." });
+      }
 
       const paymentIntent = await stripe.paymentIntents.retrieve(
         session.payment_intent,
@@ -35,8 +46,19 @@ router.post(
         },
       );
 
-      const exactStripeFee =
-        paymentIntent.latest_charge.balance_transaction.fee / 100;
+      const latestCharge = paymentIntent.latest_charge;
+      if (!latestCharge || typeof latestCharge === "string") {
+        return res.status(500).json({ message: "Expanded charge is unavailable." });
+      }
+
+      const balanceTransaction = latestCharge.balance_transaction;
+      if (!balanceTransaction || typeof balanceTransaction === "string") {
+        return res
+          .status(500)
+          .json({ message: "Expanded balance transaction is unavailable." });
+      }
+
+      const exactStripeFee = balanceTransaction.fee / 100;
       const totalCollected = session.amount_total / 100;
 
       await Order.findByIdAndUpdate(ParentorderID, {

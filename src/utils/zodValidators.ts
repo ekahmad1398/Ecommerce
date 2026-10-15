@@ -28,7 +28,17 @@ export const productBodySchema = z.object({
     .trim()
     .min(10, "description must be at least 2 characters"),
   categoryID: z.string().trim(),
-  color: z.string().trim().nullable().optional(),
+  colors: z
+    .string()
+    .transform((str, ctx) => {
+      try {
+        return JSON.parse(str);
+      } catch {
+        ctx.addIssue({ code: "custom", message: "Invalid colors JSON array" });
+        return z.NEVER;
+      }
+    })
+    .pipe(z.array(z.string()).min(1, "Select at least one color option")),
   status: z.enum(["active", "inactive", "archived"]).default("active"),
   vendorId: z.email().trim().toLowerCase(),
   price: z
@@ -80,7 +90,17 @@ export const updateproductBodySchema = z.object({
     .trim()
     .min(1, "categoryID name is required.")
     .optional(),
-  color: z.string().trim().nullable().optional(),
+    colors: z
+    .string()
+    .transform((str, ctx) => {
+      try {
+        return JSON.parse(str);
+      } catch {
+        ctx.addIssue({ code: "custom", message: "Invalid colors JSON array" });
+        return z.NEVER;
+      }
+    })
+    .pipe(z.array(z.string()).nullable().optional()),
   status: z.enum(["active", "inactive", "archived"]).optional(),
   vendorId: z.email().trim().toLowerCase().optional(),
   price: z
