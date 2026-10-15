@@ -9,6 +9,7 @@ import jwtfun, {
 import resetPasswordModel from "../../models/ResetLinkPass.js";
 import ResetLinkPass from "../../models/ResetLinkPass.js";
 import type { Request, Response, NextFunction } from "express";
+import env from "../../config.js";
 
 export const forgetpassword = async (
   req: Request,
@@ -27,10 +28,10 @@ export const forgetpassword = async (
 
     const token = resetjwtfun({
       id: existinguser.id,
-      type: process.env.JWT_RESET_TEXT,
+      type: env.JWT_RESET_TEXT,
       password: existinguser.password,
     });
-    const link = `${process.env.Frontend_URL}/resetPassword/${token}`;
+    const link = `${env.Frontend_URL}/resetPassword/${token}`;
 
     const deleteOldLinks = await resetPasswordModel.deleteMany({
       email: email,
@@ -74,7 +75,7 @@ export const resetLink = async (
         .json({ message: "session expired or user dont exist." });
     }
 
-    const secret = process.env.JWT_temp_token + IDuser.password;
+    const secret = env.JWT_temp_token + IDuser.password;
 
     const jwtuser = jwt.verify(token, secret);
 
@@ -94,14 +95,14 @@ export const resetLink = async (
 
     res.cookie("accesstoken", accesstoken, {
       httpOnly: true,
-      secure: process.env.Node_Env === "production",
+      secure: env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 20 * 60 * 1000,
     });
     res.cookie("refreshtoken", refreshtoken, {
       httpOnly: true,
-      secure: process.env.Node_Env === "production",
+      secure: env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 30,
