@@ -3,7 +3,7 @@ import User from "../models/User.js";
 import vendor from "../models/vendor.js";
 import jwtfun from "../utils/jwthash.js";
 const router = express.Router();
-router.get("/api/refresh-token", async (req, res, next) => {
+router.get("/refresh-token", async (req, res, next) => {
     try {
         const longTermToken = req.cookies.refreshtoken;
         if (!longTermToken) {

@@ -4,7 +4,6 @@ import env from "../config.js";
 
   try {
     await mongoose.connect(env.MONGODB_URI);
-    console.log("MongoDB connected successfully");
   } catch (error) {
     console.log(error);
   }

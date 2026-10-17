@@ -7,6 +7,7 @@ import AuthRoutes from "./routes/authroutes.js";
 import userRoutes from "./routes/userroutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import cookieParser from "cookie-parser";
+import rotateCookie from "./routes/rotateCookie.js";
 const app = express();
 app.use(cookieParser());
 app.use("/api/v1/webhooks", stripeWebhook);
@@ -17,12 +18,11 @@ const startServer = async () => {
         // await forwardToApp(),
         // we only turn this on when we are in production level and out of here
         // cront_worker(),
-        app.listen(PORT, () => {
-            console.log(`Server running on http://localhost:${PORT}`);
-        }));
+        app.listen(PORT));
 };
 app.use("/vendor", vendorRoutes);
 app.use("/authentication", AuthRoutes);
 app.use("/user", userRoutes);
 app.use("/admin", adminRoutes);
+app.use("/api", rotateCookie);
 startServer();
