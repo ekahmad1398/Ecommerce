@@ -10,9 +10,11 @@ import adminRoutes from "./routes/adminRoutes.js";
 import cron_worker from "./utils/cron_worker.js"
 import cookieParser from "cookie-parser";
 import rotateCookie from "./routes/rotateCookie.js"
+import cors from "cors"
 
 const app = express();
 app.use(cookieParser())
+app.use(cors())
 app.use("/api/v1/webhooks", stripeWebhook);
 
 app.use(express.json());
