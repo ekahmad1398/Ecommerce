@@ -13,25 +13,36 @@ export const createAccount = async (req, res, next) => {
                 .json({ message: "please provide all the required fields" });
         }
         const cleanemail = email.toLowerCase().trim();
-        const existinguser = await user.findOne({ email: cleanemail });
         const hashedpassword = hashingpassword(password);
-        if (existinguser && !existinguser.isEmailVerified) {
+        let existinguser = await user.findOne({ email: cleanemail });
+        if (existinguser?.isEmailVerified) {
+            return res.status(400).json({ message: "User already exists" });
+        }
+        if (existinguser) {
             existinguser.name = name;
-            existinguser.email = cleanemail;
             existinguser.password = hashedpassword;
             await existinguser.save();
         }
         else {
-            if (existinguser) {
-                return res.status(400).json({ message: "User already exists" });
-            }
             const newUserData = {
-                name: name,
+                name,
                 email: cleanemail,
                 password: hashedpassword,
             };
-            const newuser = new user(newUserData);
-            await newuser.save();
+            try {
+                await new user(newUserData).save();
+            }
+            catch (error) {
+                if (error.code !== 11000)
+                    throw error;
+                existinguser = await user.findOne({ email: cleanemail });
+                if (!existinguser || existinguser.isEmailVerified) {
+                    return res.status(400).json({ message: "User already exists" });
+                }
+                existinguser.name = name;
+                existinguser.password = hashedpassword;
+                await existinguser.save();
+            }
         }
         const generatedOTP = crypto.randomInt(100000, 999999).toString();
         const HashedOTP = hashingpassword(generatedOTP);
