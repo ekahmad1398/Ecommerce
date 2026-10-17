@@ -9,9 +9,26 @@ import adminRoutes from "./routes/adminRoutes.js";
 import cookieParser from "cookie-parser";
 import rotateCookie from "./routes/rotateCookie.js";
 import cors from "cors";
+const allowedOrigins = [
+    "http://100.97.73.17:3000"
+];
 const app = express();
 app.use(cookieParser());
-app.use(cors());
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin)
+            return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        }
+        else {
+            callback(new Error("Not allowed by CORS"));
+        }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type"]
+}));
 app.use("/api/v1/webhooks", stripeWebhook);
 app.use(express.json());
 const PORT = process.env.PORT;
