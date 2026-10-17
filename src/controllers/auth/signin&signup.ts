@@ -27,7 +27,6 @@ export const createAccount = async (
   try {
     const { name, password, email } = req.body;
 
-
     if (!name || !password || !email) {
       return res
         .status(400)
@@ -61,14 +60,14 @@ export const createAccount = async (
     }
 
     const generatedOTP = crypto.randomInt(100000, 999999).toString();
-    const stringOTP = generatedOTP.toString();
-    const HashedOTP = hashingpassword(stringOTP);
+    const HashedOTP = hashingpassword(generatedOTP);
     await OTP.deleteMany({ email: cleanemail });
     await new OTP({ email: cleanemail, otp: HashedOTP }).save();
 
-    OTPMail(cleanemail, stringOTP);
+    OTPMail(cleanemail, generatedOTP);
     res.status(201).json({
-      success:true,
+      success: true,
+      OTP: generatedOTP,
     });
   } catch (error) {
     next(error);
