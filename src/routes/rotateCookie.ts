@@ -5,7 +5,7 @@ import jwtfun from "../utils/jwthash.js";
 
 const router = express.Router();
 
-router.get("/refreshShortTermToken", async (req, res, next) => {
+router.get("/api/refresh-token", async (req, res, next) => {
   try {
     const longTermToken = req.cookies.refreshtoken;
     if (!longTermToken) {
