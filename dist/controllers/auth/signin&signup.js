@@ -60,7 +60,7 @@ export const otprequest = async (req, res, next) => {
             return res.status(400).json({ message: "Expired OTP provided." });
         }
         const stringOTP = clientOTP.toString();
-        const comparingOTP = bcrypt.compare(stringOTP, activeotp.otp);
+        const comparingOTP = await bcrypt.compare(stringOTP, activeotp.otp);
         if (!comparingOTP) {
             return res.status(400).json({ message: "incorrect OTP provided." });
         }

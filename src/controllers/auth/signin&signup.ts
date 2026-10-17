@@ -8,11 +8,6 @@ import { uploadToCloudinary } from "../../middleware/upload.js";
 import vendorSchema from "../../models/vendor.js";
 import { NextFunction, Request, Response } from "express";
 
-interface iamgeReturn {
-  secure_url: string;
-  public_id: string;
-}
-
 interface newUser {
   name: any;
   email: any;
@@ -92,7 +87,7 @@ export const otprequest = async (
       return res.status(400).json({ message: "Expired OTP provided." });
     }
     const stringOTP = clientOTP.toString();
-    const comparingOTP = bcrypt.compare(stringOTP, activeotp.otp);
+    const comparingOTP = await bcrypt.compare(stringOTP, activeotp.otp);
 
     if (!comparingOTP) {
       return res.status(400).json({ message: "incorrect OTP provided." });
