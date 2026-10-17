@@ -2,9 +2,7 @@ import user from "../../models/User.js";
 import OTP from "../../models/Otp.js";
 import crypto from "crypto";
 import jwtfun, { hashingpassword, refreshjwtfun } from "../../utils/jwthash.js";
-import { OTPMail } from "../../config/mailtrapconfig.js";
 import bcrypt from "bcryptjs";
-import { uploadToCloudinary } from "../../middleware/upload.js";
 import vendorSchema from "../../models/vendor.js";
 import { NextFunction, Request, Response } from "express";
 
@@ -59,7 +57,6 @@ export const createAccount = async (
     await OTP.deleteMany({ email: cleanemail });
     await new OTP({ email: cleanemail, otp: HashedOTP }).save();
 
-    OTPMail(cleanemail, generatedOTP);
     res.status(201).json({
       success: true,
       OTP: generatedOTP,
