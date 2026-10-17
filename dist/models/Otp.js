@@ -8,4 +8,5 @@ const otpSchema = new mongoose.Schema({
         expires: 600,
     },
 });
+otpSchema.index({ email: -1 });
 export default mongoose.model("Otp", otpSchema);

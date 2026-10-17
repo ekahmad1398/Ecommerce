@@ -57,12 +57,12 @@ export const otprequest = async (req, res, next) => {
         const cleanemail = email.toLowerCase().trim();
         const activeotp = await OTP.findOne({ email: cleanemail });
         if (!activeotp) {
-            return res.status(400).json({ message: "incorrect or invalid OTP" });
+            return res.status(400).json({ message: "Expired OTP provided." });
         }
         const stringOTP = clientOTP.toString();
-        const comparignOTP = bcrypt.compare(stringOTP, activeotp.otp);
-        if (!comparignOTP) {
-            return res.status(400).json({ message: "incorrect or invalid OTP" });
+        const comparingOTP = bcrypt.compare(stringOTP, activeotp.otp);
+        if (!comparingOTP) {
+            return res.status(400).json({ message: "incorrect OTP provided." });
         }
         await activeotp.deleteOne({ _id: activeotp._id });
         const unlockuser = await user.findOneAndUpdate({ email: cleanemail }, { $set: { isEmailVerified: true, status: "active" } }, { returnDocument: "after" });
