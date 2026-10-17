@@ -4,12 +4,10 @@ import crypto from "crypto";
 import jwtfun, { hashingpassword, refreshjwtfun } from "../../utils/jwthash.js";
 import { OTPMail } from "../../config/mailtrapconfig.js";
 import bcrypt from "bcryptjs";
-import { uploadToCloudinary } from "../../middleware/upload.js";
 import vendorSchema from "../../models/vendor.js";
 export const createAccount = async (req, res, next) => {
     try {
         const { name, password, email } = req.body;
-        const RprofileImage = req?.file;
         if (!name || !password || !email) {
             return res
                 .status(400)
@@ -22,12 +20,6 @@ export const createAccount = async (req, res, next) => {
             existinguser.name = name;
             existinguser.email = cleanemail;
             existinguser.password = hashedpassword;
-            existinguser.status = "inactive";
-            if (RprofileImage) {
-                const result = (await uploadToCloudinary(RprofileImage.buffer));
-                existinguser.profileImage = result.secure_url;
-                existinguser.Cloudinary_ID = result.public_id;
-            }
             await existinguser.save();
         }
         else {
@@ -38,13 +30,7 @@ export const createAccount = async (req, res, next) => {
                 name: name,
                 email: cleanemail,
                 password: hashedpassword,
-                status: "inactive",
             };
-            if (RprofileImage) {
-                const result = (await uploadToCloudinary(RprofileImage.buffer));
-                newUserData.profileImage = result.secure_url;
-                newUserData.Cloudinary_ID = result.public_id;
-            }
             const newuser = new user(newUserData);
             await newuser.save();
         }
@@ -55,8 +41,7 @@ export const createAccount = async (req, res, next) => {
         await new OTP({ email: cleanemail, otp: HashedOTP }).save();
         OTPMail(cleanemail, stringOTP);
         res.status(201).json({
-            message: "user saved successfully and OTP sent",
-            user: name,
+            success: true,
         });
     }
     catch (error) {

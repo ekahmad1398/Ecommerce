@@ -17,9 +17,6 @@ interface newUser {
   name: any;
   email: any;
   password: string;
-  status: string;
-  profileImage?: string;
-  Cloudinary_ID?: string;
 }
 
 export const createAccount = async (
@@ -29,7 +26,7 @@ export const createAccount = async (
 ) => {
   try {
     const { name, password, email } = req.body;
-    const RprofileImage = req?.file;
+
 
     if (!name || !password || !email) {
       return res
@@ -46,15 +43,6 @@ export const createAccount = async (
       existinguser.name = name;
       existinguser.email = cleanemail;
       existinguser.password = hashedpassword;
-      existinguser.status = "inactive";
-
-      if (RprofileImage) {
-        const result = (await uploadToCloudinary(
-          RprofileImage.buffer,
-        )) as iamgeReturn;
-        existinguser.profileImage = result.secure_url;
-        existinguser.Cloudinary_ID = result.public_id;
-      }
 
       await existinguser.save();
     } else {
@@ -62,20 +50,11 @@ export const createAccount = async (
         return res.status(400).json({ message: "User already exists" });
       }
 
-      const newUserData:newUser = {
+      const newUserData: newUser = {
         name: name,
         email: cleanemail,
         password: hashedpassword,
-        status: "inactive",
       };
-
-      if (RprofileImage) {
-        const result = (await uploadToCloudinary(
-          RprofileImage.buffer,
-        )) as iamgeReturn;
-        newUserData.profileImage = result.secure_url;
-        newUserData.Cloudinary_ID = result.public_id;
-      }
 
       const newuser = new user(newUserData);
       await newuser.save();
@@ -89,8 +68,7 @@ export const createAccount = async (
 
     OTPMail(cleanemail, stringOTP);
     res.status(201).json({
-      message: "user saved successfully and OTP sent",
-      user: name,
+      success:true,
     });
   } catch (error) {
     next(error);
