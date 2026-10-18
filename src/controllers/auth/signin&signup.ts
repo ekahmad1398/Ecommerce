@@ -21,9 +21,10 @@ export const createAccount = async (
     const { name, password, email } = req.body;
 
     if (!name || !password || !email) {
-      return res
-        .status(400)
-        .json({ message: "please provide all the required fields" });
+      return res.status(200).json({
+        success: false,
+        message: "please provide all the required fields",
+      });
     }
 
     const cleanemail = email.toLowerCase().trim();
@@ -31,7 +32,9 @@ export const createAccount = async (
     let existinguser = await user.findOne({ email: cleanemail });
 
     if (existinguser && existinguser.isEmailVerified) {
-      return res.status(400).json({ message: "User already exists" });
+      return res
+        .status(200)
+        .json({ success: false, message: "User already exists" });
     }
 
     if (existinguser && !existinguser.isEmailVerified) {
@@ -70,19 +73,25 @@ export const otprequest = async (
     const { email, clientOTP } = req.body;
 
     if (!email || !clientOTP) {
-      return res.status(400).json({ message: "missing required fields" });
+      return res
+        .status(200)
+        .json({ success: false, message: "missing required fields" });
     }
 
     const cleanemail = email.toLowerCase().trim();
     const activeotp = await OTP.findOne({ email: cleanemail });
     if (!activeotp) {
-      return res.status(400).json({ message: "Expired OTP provided." });
+      return res
+        .status(200)
+        .json({ success: false, message: "Expired OTP provided." });
     }
     const stringOTP = clientOTP.toString();
     const comparingOTP = await bcrypt.compare(stringOTP, activeotp.otp);
 
     if (!comparingOTP) {
-      return res.status(400).json({ message: "incorrect OTP provided." });
+      return res
+        .status(200)
+        .json({ success: false, message: "incorrect OTP provided." });
     }
 
     await activeotp.deleteOne({ _id: activeotp._id });
@@ -94,7 +103,9 @@ export const otprequest = async (
     );
 
     if (!unlockuser) {
-      return res.status(404).json({ message: "user was deleted or missing" });
+      return res
+        .status(200)
+        .json({ success: false, message: "user was deleted or missing" });
     }
 
     const accesstoken = jwtfun({
@@ -141,21 +152,21 @@ export const loginfun = async (
 
     if (!cleanemail || !password) {
       return res
-        .status(404)
+        .status(200)
         .json({ success: false, message: "missing required fields" });
     }
     const User = await user.findOne({ email: cleanemail });
 
     if (!User) {
       return res
-        .status(400)
+        .status(200)
         .json({ success: false, message: "incorrect email or password" });
     }
     const ismatch = await bcrypt.compare(password, User.password);
 
     if (!ismatch) {
       return res
-        .status(400)
+        .status(200)
         .json({ success: false, message: "incorrect email or password" });
     }
 
@@ -166,7 +177,7 @@ export const loginfun = async (
         .lean();
       if (!vendor) {
         return res
-          .status(404)
+          .status(200)
           .json({ success: false, message: "vendor profile not found" });
       }
       const vendorID = vendor._id.toString();
