@@ -73,16 +73,16 @@ export const otprequest = async (req, res, next) => {
             id: unlockuser.id,
         });
         res.cookie("accesstoken", accesstoken, {
-            httpOnly: false,
-            secure: process.env.Node_Env === "production",
-            sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
+            httpOnly: true,
+            secure: true,
+            sameSite: process.env.Node_Env === "production" ? "strict" : "none",
             path: "/",
             maxAge: 20 * 60 * 1000,
         });
         res.cookie("refreshtoken", refreshtoken, {
-            httpOnly: false,
-            secure: process.env.Node_Env === "production",
-            sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
+            httpOnly: true,
+            secure: true,
+            sameSite: process.env.Node_Env === "production" ? "strict" : "none",
             path: "/",
             maxAge: 1000 * 60 * 60 * 24 * 30,
         });
@@ -126,8 +126,8 @@ export const loginfun = async (req, res, next) => {
             });
             res.cookie("accesstoken", accesstoken, {
                 httpOnly: true,
-                secure: process.env.Node_Env === "production",
-                sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
+                secure: true,
+                sameSite: process.env.Node_Env === "production" ? "strict" : "none",
                 path: "/",
                 maxAge: 20 * 60 * 1000,
             });
@@ -139,8 +139,8 @@ export const loginfun = async (req, res, next) => {
             });
             res.cookie("accesstoken", accesstoken, {
                 httpOnly: true,
-                secure: process.env.Node_Env === "production",
-                sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
+                secure: true,
+                sameSite: process.env.Node_Env === "production" ? "strict" : "none",
                 path: "/",
                 maxAge: 20 * 60 * 1000,
             });
@@ -148,8 +148,8 @@ export const loginfun = async (req, res, next) => {
         const refreshtoken = refreshjwtfun({ id: User.id });
         res.cookie("refreshtoken", refreshtoken, {
             httpOnly: true,
-            secure: process.env.Node_Env === "production",
-            sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
+            secure: true,
+            sameSite: process.env.Node_Env === "production" ? "strict" : "none",
             path: "/",
             maxAge: 1000 * 60 * 60 * 24 * 30,
         });
@@ -162,14 +162,14 @@ export const loginfun = async (req, res, next) => {
 export const logout = async (req, res) => {
     res.clearCookie("accesstoken", {
         httpOnly: true,
-        secure: process.env.Node_Env === "production",
-        sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
+        secure: true,
+        sameSite: process.env.Node_Env === "production" ? "strict" : "none",
         path: "/",
     });
     res.clearCookie("refreshtoken", {
         httpOnly: true,
-        secure: process.env.Node_Env === "production",
-        sameSite: process.env.Node_Env === "production" ? "strict" : "lax",
+        secure: true,
+        sameSite: process.env.Node_Env === "production" ? "strict" : "none",
         path: "/",
     });
     res.status(200).json({ message: "you are logged out" });
