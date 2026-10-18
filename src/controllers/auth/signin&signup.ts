@@ -140,17 +140,23 @@ export const loginfun = async (
       typeof email === "string" ? email.trim().toLowerCase() : "";
 
     if (!cleanemail || !password) {
-      return res.status(404).json({ message: "missing required fields" });
+      return res
+        .status(404)
+        .json({ success: false, message: "missing required fields" });
     }
     const User = await user.findOne({ email: cleanemail });
 
     if (!User) {
-      return res.status(400).json({ message: "incorrect email or password" });
+      return res
+        .status(400)
+        .json({ success: false, message: "incorrect email or password" });
     }
     const ismatch = await bcrypt.compare(password, User.password);
 
     if (!ismatch) {
-      return res.status(400).json({ message: "incorrect email or password" });
+      return res
+        .status(400)
+        .json({ success: false, message: "incorrect email or password" });
     }
 
     if (User.role === "vendor") {
@@ -159,7 +165,9 @@ export const loginfun = async (
         .select("_id")
         .lean();
       if (!vendor) {
-        return res.status(404).json({ message: "vendor profile not found" });
+        return res
+          .status(404)
+          .json({ success: false, message: "vendor profile not found" });
       }
       const vendorID = vendor._id.toString();
 
