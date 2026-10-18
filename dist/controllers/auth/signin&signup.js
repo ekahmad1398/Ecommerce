@@ -153,7 +153,9 @@ export const loginfun = async (req, res, next) => {
             path: "/",
             maxAge: 1000 * 60 * 60 * 24 * 30,
         });
-        res.status(200).json({ success: true, message: "welcome back" });
+        res
+            .status(200)
+            .json({ success: true, message: "welcome back", Role: User.role });
     }
     catch (error) {
         next(error);
