@@ -160,7 +160,7 @@ export const loginfun = async (
     if (!User) {
       return res
         .status(200)
-        .json({ success: false, message: "incorrect email or password" });
+        .json({ success: false, message: "User does not Exist. Sign Up." });
     }
     const ismatch = await bcrypt.compare(password, User.password);
 
