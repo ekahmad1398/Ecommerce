@@ -4,6 +4,7 @@ import crypto from "crypto";
 import jwtfun, { hashingpassword, refreshjwtfun } from "../../utils/jwthash.js";
 import bcrypt from "bcryptjs";
 import vendorSchema from "../../models/vendor.js";
+import env from "../../config.js";
 export const createAccount = async (req, res, next) => {
     try {
         const { name, password, email } = req.body;
@@ -86,14 +87,14 @@ export const otprequest = async (req, res, next) => {
         res.cookie("accesstoken", accesstoken, {
             httpOnly: true,
             secure: true,
-            sameSite: process.env.Node_Env === "production" ? "strict" : "none",
+            sameSite: env.NODE_ENV === "production" ? "strict" : "none",
             path: "/",
             maxAge: 20 * 60 * 1000,
         });
         res.cookie("refreshtoken", refreshtoken, {
             httpOnly: true,
             secure: true,
-            sameSite: process.env.Node_Env === "production" ? "strict" : "none",
+            sameSite: env.NODE_ENV === "production" ? "strict" : "none",
             path: "/",
             maxAge: 1000 * 60 * 60 * 24 * 30,
         });
@@ -146,7 +147,7 @@ export const loginfun = async (req, res, next) => {
             res.cookie("accesstoken", accesstoken, {
                 httpOnly: true,
                 secure: true,
-                sameSite: process.env.Node_Env === "production" ? "strict" : "none",
+                sameSite: env.NODE_ENV === "production" ? "strict" : "none",
                 path: "/",
                 maxAge: 20 * 60 * 1000,
             });
@@ -159,7 +160,7 @@ export const loginfun = async (req, res, next) => {
             res.cookie("accesstoken", accesstoken, {
                 httpOnly: true,
                 secure: true,
-                sameSite: process.env.Node_Env === "production" ? "strict" : "none",
+                sameSite: env.NODE_ENV === "production" ? "strict" : "none",
                 path: "/",
                 maxAge: 20 * 60 * 1000,
             });
@@ -168,7 +169,7 @@ export const loginfun = async (req, res, next) => {
         res.cookie("refreshtoken", refreshtoken, {
             httpOnly: true,
             secure: true,
-            sameSite: process.env.Node_Env === "production" ? "strict" : "none",
+            sameSite: env.NODE_ENV === "production" ? "strict" : "none",
             path: "/",
             maxAge: 1000 * 60 * 60 * 24 * 30,
         });
@@ -184,13 +185,13 @@ export const logout = async (req, res) => {
     res.clearCookie("accesstoken", {
         httpOnly: true,
         secure: true,
-        sameSite: process.env.Node_Env === "production" ? "strict" : "none",
+        sameSite: env.NODE_ENV === "production" ? "strict" : "none",
         path: "/",
     });
     res.clearCookie("refreshtoken", {
         httpOnly: true,
         secure: true,
-        sameSite: process.env.Node_Env === "production" ? "strict" : "none",
+        sameSite: env.NODE_ENV === "production" ? "strict" : "none",
         path: "/",
     });
     res.status(200).json({ message: "you are logged out" });
