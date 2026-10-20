@@ -21,7 +21,7 @@ export const createAccount = async (
     const { name, password, email } = req.body;
 
     if (!name || !password || !email) {
-      return res.status(200).json({
+      return res.status(400).json({
         success: false,
         message: "please provide all the required fields",
       });
@@ -33,7 +33,7 @@ export const createAccount = async (
 
     if (existinguser && existinguser.isEmailVerified) {
       return res
-        .status(200)
+        .status(400)
         .json({ success: false, message: "User already exists" });
     }
 
@@ -82,7 +82,7 @@ export const otprequest = async (
     const activeotp = await OTP.findOne({ email: cleanemail });
     if (!activeotp) {
       return res
-        .status(200)
+        .status(400)
         .json({ success: false, message: "Expired OTP provided." });
     }
     const stringOTP = clientOTP.toString();
@@ -90,7 +90,7 @@ export const otprequest = async (
 
     if (!comparingOTP) {
       return res
-        .status(200)
+        .status(400)
         .json({ success: false, message: "incorrect OTP provided." });
     }
 
@@ -104,7 +104,7 @@ export const otprequest = async (
 
     if (!unlockuser) {
       return res
-        .status(200)
+        .status(400)
         .json({ success: false, message: "user was deleted or missing" });
     }
 
@@ -152,21 +152,21 @@ export const loginfun = async (
 
     if (!cleanemail || !password) {
       return res
-        .status(200)
+        .status(400)
         .json({ success: false, message: "missing required fields" });
     }
     const User = await user.findOne({ email: cleanemail });
 
     if (!User) {
       return res
-        .status(200)
+        .status(400)
         .json({ success: false, message: "User does not Exist. Sign Up." });
     }
     const ismatch = await bcrypt.compare(password, User.password);
 
     if (!ismatch) {
       return res
-        .status(200)
+        .status(400)
         .json({ success: false, message: "incorrect email or password" });
     }
 
@@ -177,7 +177,7 @@ export const loginfun = async (
         .lean();
       if (!vendor) {
         return res
-          .status(200)
+          .status(400)
           .json({ success: false, message: "vendor profile not found" });
       }
       const vendorID = vendor._id.toString();

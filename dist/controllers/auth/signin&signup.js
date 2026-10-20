@@ -8,7 +8,7 @@ export const createAccount = async (req, res, next) => {
     try {
         const { name, password, email } = req.body;
         if (!name || !password || !email) {
-            return res.status(200).json({
+            return res.status(400).json({
                 success: false,
                 message: "please provide all the required fields",
             });
@@ -18,7 +18,7 @@ export const createAccount = async (req, res, next) => {
         let existinguser = await user.findOne({ email: cleanemail });
         if (existinguser && existinguser.isEmailVerified) {
             return res
-                .status(200)
+                .status(400)
                 .json({ success: false, message: "User already exists" });
         }
         if (existinguser && !existinguser.isEmailVerified) {
@@ -59,21 +59,21 @@ export const otprequest = async (req, res, next) => {
         const activeotp = await OTP.findOne({ email: cleanemail });
         if (!activeotp) {
             return res
-                .status(200)
+                .status(400)
                 .json({ success: false, message: "Expired OTP provided." });
         }
         const stringOTP = clientOTP.toString();
         const comparingOTP = await bcrypt.compare(stringOTP, activeotp.otp);
         if (!comparingOTP) {
             return res
-                .status(200)
+                .status(400)
                 .json({ success: false, message: "incorrect OTP provided." });
         }
         await activeotp.deleteOne({ _id: activeotp._id });
         const unlockuser = await user.findOneAndUpdate({ email: cleanemail }, { $set: { isEmailVerified: true, status: "active" } }, { returnDocument: "after" });
         if (!unlockuser) {
             return res
-                .status(200)
+                .status(400)
                 .json({ success: false, message: "user was deleted or missing" });
         }
         const accesstoken = jwtfun({
@@ -112,19 +112,19 @@ export const loginfun = async (req, res, next) => {
         const cleanemail = typeof email === "string" ? email.trim().toLowerCase() : "";
         if (!cleanemail || !password) {
             return res
-                .status(200)
+                .status(400)
                 .json({ success: false, message: "missing required fields" });
         }
         const User = await user.findOne({ email: cleanemail });
         if (!User) {
             return res
-                .status(200)
+                .status(400)
                 .json({ success: false, message: "User does not Exist. Sign Up." });
         }
         const ismatch = await bcrypt.compare(password, User.password);
         if (!ismatch) {
             return res
-                .status(200)
+                .status(400)
                 .json({ success: false, message: "incorrect email or password" });
         }
         if (User.role === "vendor") {
@@ -134,7 +134,7 @@ export const loginfun = async (req, res, next) => {
                 .lean();
             if (!vendor) {
                 return res
-                    .status(200)
+                    .status(400)
                     .json({ success: false, message: "vendor profile not found" });
             }
             const vendorID = vendor._id.toString();
