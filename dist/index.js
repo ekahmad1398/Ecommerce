@@ -9,7 +9,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import cookieParser from "cookie-parser";
 import rotateCookie from "./routes/rotateCookie.js";
 import cors from "cors";
-const allowedOrigins = ["http://100.97.73.17:3000", "marketly-five-rho.vercel.app"];
+const allowedOrigins = ["http://100.97.73.17:3000", "https://marketly-five-rho.vercel.app"];
 const app = express();
 app.use(cookieParser());
 app.use(cors({
