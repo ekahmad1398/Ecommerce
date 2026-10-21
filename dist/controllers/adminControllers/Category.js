@@ -9,9 +9,16 @@ export const createCategory = async (req, res, next) => {
             parentCategory: parentCategory || null,
         });
         if (existingCategory) {
-            return res.status(400).json({ success: false });
+            return res
+                .status(400)
+                .json({ success: false, message: "a category already exists" });
         }
         const isavailabe = await category.findById(parentCategory).lean();
+        if (!isavailabe) {
+            return res
+                .status(404)
+                .json({ success: false, message: "parent category not found." });
+        }
         const uploading = await uploadToCloudinary(image);
         if (!uploading) {
             return res.status(500).json({
