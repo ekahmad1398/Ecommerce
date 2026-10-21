@@ -22,6 +22,8 @@ export const createCategory = async (
       return res.status(400).json({ success: false });
     }
 
+    const isavailabe = await category.findById(parentCategory).lean();
+
     const uploading = await uploadToCloudinary(image);
     if (!uploading) {
       return res.status(500).json({
