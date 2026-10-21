@@ -6,9 +6,10 @@ import { gettingVendors, approaveVendor, } from "../controllers/adminControllers
 import { getAdminOrderFeed, getVendorBalanceLedger, } from "../controllers/adminControllers/order.js";
 import { getAdminDashboard } from "../controllers/adminControllers/platformanalytics.js";
 import { GetProducts } from "../controllers/adminControllers/products.js";
+import upload from "../middleware/upload.js";
 const router = express.Router();
 router.use(authenticate);
-router.post("/createCategory", authorize("admin"), authorize("admin", "vendor"), createCategory);
+router.post("/createCategory", authorize("admin"), upload.single("image"), createCategory);
 router.get("/getAllCategories", authorize("vendor", "admin"), getAllCategories);
 router.use(authorize("admin"));
 router.post("/deleteCategory:id", deleteCategory);

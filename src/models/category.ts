@@ -12,10 +12,11 @@ const data = new mongoose.Schema(
       ref: "category",
       default: null,
     },
-    Image:{
-      type:String,
-      required:true,
-    }
+    Image: {
+      cloudinaryId: { type: String, required: true, select: false },
+      publicId: { type: String, required: true },
+      _id: { type: mongoose.Schema.ObjectId, auto: true },
+    },
   },
   { timestamps: true },
 );
