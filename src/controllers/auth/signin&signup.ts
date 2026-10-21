@@ -120,14 +120,14 @@ export const otprequest = async (
     res.cookie("accesstoken", accesstoken, {
       httpOnly: true,
       secure: true,
-      sameSite: env.NODE_ENV === "production" ? "strict" : "none",
+      sameSite: env.NODE_ENV === "production" ? "lax" : "none",
       path: "/",
       maxAge: 20 * 60 * 1000,
     });
     res.cookie("refreshtoken", refreshtoken, {
       httpOnly: true,
       secure: true,
-      sameSite: env.NODE_ENV === "production" ? "strict" : "none",
+      sameSite: env.NODE_ENV === "production" ? "lax" : "none",
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 30,
     });
@@ -192,7 +192,7 @@ export const loginfun = async (
       res.cookie("accesstoken", accesstoken, {
         httpOnly: true,
         secure: true,
-        sameSite: env.NODE_ENV === "production" ? "strict" : "none",
+        sameSite: env.NODE_ENV === "production" ? "lax" : "none",
         path: "/",
         maxAge: 20 * 60 * 1000,
       });
@@ -205,7 +205,7 @@ export const loginfun = async (
       res.cookie("accesstoken", accesstoken, {
         httpOnly: true,
         secure: true,
-        sameSite: env.NODE_ENV === "production" ? "strict" : "none",
+        sameSite: env.NODE_ENV === "production" ? "lax" : "none",
         path: "/",
         maxAge: 20 * 60 * 1000,
       });
@@ -215,7 +215,7 @@ export const loginfun = async (
     res.cookie("refreshtoken", refreshtoken, {
       httpOnly: true,
       secure: true,
-      sameSite: env.NODE_ENV === "production" ? "strict" : "none",
+      sameSite: env.NODE_ENV === "production" ? "lax" : "none",
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 30,
     });
@@ -232,14 +232,14 @@ export const logout = async (req: Request, res: Response) => {
   res.clearCookie("accesstoken", {
     httpOnly: true,
     secure: true,
-    sameSite: env.NODE_ENV === "production" ? "strict" : "none",
+    sameSite: env.NODE_ENV === "production" ? "lax" : "none",
     path: "/",
   });
 
   res.clearCookie("refreshtoken", {
     httpOnly: true,
     secure: true,
-    sameSite: env.NODE_ENV === "production" ? "strict" : "none",
+    sameSite: env.NODE_ENV === "production" ? "lax" : "none",
     path: "/",
   });
 
