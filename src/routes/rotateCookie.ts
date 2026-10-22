@@ -5,7 +5,7 @@ import jwtfun from "../utils/jwthash.js";
 
 const router = express.Router();
 
-router.get("/refresh-token", async (req, res, next) => {
+router.get("/refresh_token", async (req, res, next) => {
   try {
     const longTermToken = req.cookies.refreshtoken;
     if (!longTermToken) {
@@ -57,6 +57,7 @@ router.get("/refresh-token", async (req, res, next) => {
       path: "/",
       maxAge: 20 * 60 * 1000,
     });
+    res.status(200).json({success:true, message:"cookie provided."})
   } catch (error) {
     next(error);
   }
