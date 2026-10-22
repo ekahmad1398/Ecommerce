@@ -2,6 +2,8 @@ import express from "express";
 import User from "../models/User.js";
 import vendor from "../models/vendor.js";
 import jwtfun from "../utils/jwthash.js";
+import jwt from "jsonwebtoken";
+import env from "../config.js";
 const router = express.Router();
 router.get("/refresh_token", async (req, res, next) => {
     try {
@@ -12,7 +14,14 @@ router.get("/refresh_token", async (req, res, next) => {
                 message: "user unauthenticated or cookie expired",
             });
         }
-        const user = await User.findById(longTermToken.id);
+        const decoded = jwt.verify(longTermToken, env.JWT_Long_Token);
+        if (typeof decoded.id !== "string") {
+            return res.status(401).json({
+                success: false,
+                message: "invalid refresh token",
+            });
+        }
+        const user = await User.findById(decoded.id);
         if (!user) {
             return res
                 .status(404)

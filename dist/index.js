@@ -9,6 +9,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import cookieParser from "cookie-parser";
 import rotateCookie from "./routes/rotateCookie.js";
 import cors from "cors";
+import env from "./config.js";
 const allowedOrigins = ["http://100.97.73.17:3000", "https://marketly-five-rho.vercel.app"];
 const app = express();
 app.use(cookieParser());
@@ -25,11 +26,10 @@ app.use(cors({
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
 }));
 app.use("/api/v1/webhooks", stripeWebhook);
 app.use(express.json());
-const PORT = process.env.PORT;
+const PORT = env.PORT;
 const startServer = async () => {
     (await connectDB(),
         // await forwardToApp(),
