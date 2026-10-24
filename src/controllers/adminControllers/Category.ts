@@ -84,12 +84,6 @@ export const updateCategory = async (
         .json({ success: false, message: "categoryData not found." });
     }
 
-    if (validatedData.image && newImage) {
-      return res.status(400).json({
-        success: false,
-        message: "can't update both images at a time",
-      });
-    }
     let imagedata: { cloudinaryId?: string; publicId?: string } = {};
 
     if (newImage) {
@@ -105,27 +99,19 @@ export const updateCategory = async (
       }
       imagedata.cloudinaryId = newUpload.public_id;
       imagedata.publicId = optimizeCategory(newUpload.secure_url);
-      const updatedCategory = await category.findByIdAndUpdate(
-        CategoryID,
-        {
+    }
+
+    const updatedCategory = await category.findByIdAndUpdate(
+      CategoryID,
+      {
+        $set: {
           name: validatedData.name,
           image: imagedata,
           parentCategory: validatedData.ParentCategory,
         },
-        { runValidators: true, returnDocument: "after" },
-      );
-      return res.status(201).json({success:true, updatedCategory})
-    }
-
-    const updatedCategory = await category.findByIdAndUpdate(
-        CategoryID,
-        {
-          name: validatedData.name,
-          image: validatedData.image,
-          parentCategory: validatedData.ParentCategory,
-        },
-        { runValidators: true, returnDocument: "after" },
-      );
+      },
+      { runValidators: true, returnDocument: "after" },
+    );
 
     res.status(200).json({
       success: true,
