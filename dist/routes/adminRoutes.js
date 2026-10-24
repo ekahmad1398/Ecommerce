@@ -10,7 +10,7 @@ import upload from "../middleware/upload.js";
 const router = express.Router();
 router.use(authenticate);
 router.post("/createCategory", authorize("admin"), upload.single("image"), createCategory);
-router.put("/updateCategory", authorize("admin"), upload.single("image"), updateCategory);
+router.put("/updateCategory/:id", authorize("admin"), upload.single("image"), updateCategory);
 router.get("/getAllCategories", authorize("vendor", "admin"), getAllCategories);
 router.use(authorize("admin"));
 router.post("/deleteCategory:id", deleteCategory);
