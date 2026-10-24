@@ -1,5 +1,5 @@
 import express from "express";
-import { createCategory, getAllCategories, deleteCategory, } from "../controllers/adminControllers/Category.js";
+import { createCategory, getAllCategories, deleteCategory, updateCategory, } from "../controllers/adminControllers/Category.js";
 import authenticate from "../middleware/auth.js";
 import authorize from "../middleware/role.js";
 import { gettingVendors, approaveVendor, } from "../controllers/adminControllers/gettingPendingVendors.js";
@@ -10,7 +10,7 @@ import upload from "../middleware/upload.js";
 const router = express.Router();
 router.use(authenticate);
 router.post("/createCategory", authorize("admin"), upload.single("image"), createCategory);
-router.post("/updateCategory", authorize("admin"), upload.single("image"), createCategory);
+router.put("/updateCategory", authorize("admin"), upload.single("image"), updateCategory);
 router.get("/getAllCategories", authorize("vendor", "admin"), getAllCategories);
 router.use(authorize("admin"));
 router.post("/deleteCategory:id", deleteCategory);
