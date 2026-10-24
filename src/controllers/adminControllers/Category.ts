@@ -114,7 +114,7 @@ export const updateCategory = async (
         },
         { runValidators: true, returnDocument: "after" },
       );
-      return res.status(200).json({success:true, updatedCategory})
+      return res.status(201).json({success:true, updatedCategory})
     }
 
     const updatedCategory = await category.findByIdAndUpdate(

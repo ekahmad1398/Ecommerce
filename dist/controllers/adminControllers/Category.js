@@ -88,7 +88,7 @@ export const updateCategory = async (req, res, next) => {
                 image: imagedata,
                 parentCategory: validatedData.ParentCategory,
             }, { runValidators: true, returnDocument: "after" });
-            return res.status(200).json({ success: true, updatedCategory });
+            return res.status(201).json({ success: true, updatedCategory });
         }
         const updatedCategory = await category.findByIdAndUpdate(CategoryID, {
             name: validatedData.name,
