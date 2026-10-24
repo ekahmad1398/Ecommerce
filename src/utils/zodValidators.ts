@@ -90,7 +90,7 @@ export const updateproductBodySchema = z.object({
     .trim()
     .min(1, "categoryID name is required.")
     .optional(),
-    colors: z
+  colors: z
     .string()
     .transform((str, ctx) => {
       try {
@@ -139,7 +139,7 @@ export const updateproductBodySchema = z.object({
     .string()
     .optional()
     .transform((str, ctx) => {
-      if (!str || str.trim() === "") return [];
+      if (!str || str.trim() === "") return null;
       try {
         return JSON.parse(str);
       } catch (error) {
@@ -151,4 +151,10 @@ export const updateproductBodySchema = z.object({
       }
     })
     .pipe(z.array(imagearray).nullable().optional()),
+});
+
+export const updateCategoryBodySchema = z.object({
+  name: z.string().trim().min(2, "name must be at least 2 characters"),
+  ParentCategory: z.string().trim().optional(),
+  image: z.string().url().optional(),
 });

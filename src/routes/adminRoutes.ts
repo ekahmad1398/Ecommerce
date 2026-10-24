@@ -24,6 +24,7 @@ const router = express.Router();
 router.use(authenticate);
 
 router.post("/createCategory", authorize("admin"), upload.single("image"), createCategory);
+router.post("/updateCategory", authorize("admin"), upload.single("image"), createCategory);
 router.get("/getAllCategories", authorize("vendor", "admin"), getAllCategories);
 
 router.use(authorize("admin"));

@@ -1,10 +1,12 @@
 import { NextFunction, Request, Response } from "express";
 import category from "../../models/category.js";
-import Product from "../../models/Product.js";
+
 import {
   deleteFromCloudinary,
   uploadToCloudinary,
 } from "../../middleware/upload.js";
+import { updateCategoryBodySchema } from "../../utils/zodValidators.js";
+import Product from "../../models/Product.js";
 
 export const createCategory = async (
   req: Request,
@@ -52,6 +54,75 @@ export const createCategory = async (
       success: true,
       category: newCategory,
       message: "marketplace category created successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateCategory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const validatedData = updateCategoryBodySchema.parse(req.body);
+    const CategoryID = req.params.id;
+    if (!validatedData.name || !CategoryID) {
+      res.status(400).json({
+        success: false,
+        message: "all fields are required",
+      });
+    }
+    const newImage = req?.file;
+    const categoryData = await category.findById(CategoryID);
+
+    if (!categoryData) {
+      return res
+        .status(404)
+        .json({ success: false, message: "categoryData not found." });
+    }
+
+    if (validatedData.image && newImage) {
+      return res.status(400).json({
+        success: false,
+        message: "can't update both images at a time",
+      });
+    }
+    let imagedata: { cloudinaryId?: string; publicId?: string } = {};
+
+    if (newImage) {
+      if (categoryData.Image?.cloudinaryId) {
+        await deleteFromCloudinary(categoryData.Image.cloudinaryId);
+      }
+      const newUpload = await uploadToCloudinary(newImage.buffer);
+      imagedata.cloudinaryId = newUpload?.public_id;
+      imagedata.publicId = newUpload?.secure_url;
+      const updatedCategory = await category.findByIdAndUpdate(
+        CategoryID,
+        {
+          name: validatedData.name,
+          image: imagedata,
+          parentCategory: validatedData.ParentCategory,
+        },
+        { runValidators: true, returnDocument: "after" },
+      );
+      return res.status(200).json({success:true, updatedCategory})
+    }
+
+    const updatedCategory = await category.findByIdAndUpdate(
+        CategoryID,
+        {
+          name: validatedData.name,
+          image: validatedData.image,
+          parentCategory: validatedData.ParentCategory,
+        },
+        { runValidators: true, returnDocument: "after" },
+      );
+
+    res.status(200).json({
+      success: true,
+      updatedCategory,
     });
   } catch (error) {
     next(error);
