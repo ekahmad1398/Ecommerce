@@ -2,6 +2,7 @@ import category from "../../models/category.js";
 import { deleteFromCloudinary, uploadToCloudinary, } from "../../middleware/upload.js";
 import { updateCategoryBodySchema } from "../../utils/zodValidators.js";
 import Product from "../../models/Product.js";
+import { optimizeCategory } from "../../utils/optimizer.js";
 export const createCategory = async (req, res, next) => {
     try {
         const { name, parentCategory, image } = req.body;
@@ -74,8 +75,14 @@ export const updateCategory = async (req, res, next) => {
                 await deleteFromCloudinary(categoryData.Image.cloudinaryId);
             }
             const newUpload = await uploadToCloudinary(newImage.buffer);
-            imagedata.cloudinaryId = newUpload?.public_id;
-            imagedata.publicId = newUpload?.secure_url;
+            if (!newUpload) {
+                return res.status(500).json({
+                    success: false,
+                    message: "Category image upload failed.",
+                });
+            }
+            imagedata.cloudinaryId = newUpload.public_id;
+            imagedata.publicId = optimizeCategory(newUpload.secure_url);
             const updatedCategory = await category.findByIdAndUpdate(CategoryID, {
                 name: validatedData.name,
                 image: imagedata,
