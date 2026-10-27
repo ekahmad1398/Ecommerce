@@ -27,12 +27,14 @@ export const createCategory = async (
         .json({ success: false, message: "a category already exists" });
     }
 
-    const isavailabe = await category.findById(parentCategory).lean();
+    if (parentCategory) {
+      const isavailabe = await category.findById(parentCategory).lean();
 
-    if (!isavailabe) {
-      return res
-        .status(404)
-        .json({ success: false, message: "parent category not found." });
+      if (!isavailabe) {
+        return res
+          .status(404)
+          .json({ success: false, message: "parent category not found." });
+      }
     }
 
     const uploading = await uploadToCloudinary(image);
@@ -76,14 +78,14 @@ export const updateCategory = async (
         message: "all fields are required",
       });
     }
-    const newImage = req.file;
     const categoryData = await category.findById(CategoryID);
-
     if (!categoryData) {
       return res
         .status(404)
         .json({ success: false, message: "categoryData not found." });
     }
+    
+    const newImage = req.file;
 
     const updates: {
       name: string;
@@ -93,12 +95,6 @@ export const updateCategory = async (
 
     if (validatedData.ParentCategory !== undefined) {
       const parentId = validatedData.ParentCategory.trim();
-      if (parentId && !(await category.exists({ _id: parentId }))) {
-        return res.status(404).json({
-          success: false,
-          message: "parent category not found.",
-        });
-      }
       updates.parentCategory = parentId || null;
     }
 
@@ -115,8 +111,10 @@ export const updateCategory = async (
         cloudinaryId: optimizeCategory(uploading.secure_url),
         publicId: uploading.public_id,
       };
+      console.log(updates)
     }
 
+    console.log(updates)
     const updatedCategory = await category.findByIdAndUpdate(
       CategoryID,
       { $set: updates },
@@ -190,7 +188,12 @@ export const specificCategoryName = async (
     const searchTerm = req.query.name;
     const filter =
       typeof searchTerm === "string" && searchTerm.trim()
-        ? { name: { $regex: searchTerm.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" } }
+        ? {
+            name: {
+              $regex: searchTerm.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+              $options: "i",
+            },
+          }
         : {};
 
     const categories = await category
