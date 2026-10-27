@@ -15,11 +15,13 @@ export const createCategory = async (req, res, next) => {
                 .status(400)
                 .json({ success: false, message: "a category already exists" });
         }
-        const isavailabe = await category.findById(parentCategory).lean();
-        if (!isavailabe) {
-            return res
-                .status(404)
-                .json({ success: false, message: "parent category not found." });
+        if (parentCategory) {
+            const isavailabe = await category.findById(parentCategory).lean();
+            if (!isavailabe) {
+                return res
+                    .status(404)
+                    .json({ success: false, message: "parent category not found." });
+            }
         }
         const uploading = await uploadToCloudinary(image);
         if (!uploading) {
@@ -57,22 +59,16 @@ export const updateCategory = async (req, res, next) => {
                 message: "all fields are required",
             });
         }
-        const newImage = req.file;
         const categoryData = await category.findById(CategoryID);
         if (!categoryData) {
             return res
                 .status(404)
                 .json({ success: false, message: "categoryData not found." });
         }
+        const newImage = req.file;
         const updates = { name: validatedData.name };
         if (validatedData.ParentCategory !== undefined) {
             const parentId = validatedData.ParentCategory.trim();
-            if (parentId && !(await category.exists({ _id: parentId }))) {
-                return res.status(404).json({
-                    success: false,
-                    message: "parent category not found.",
-                });
-            }
             updates.parentCategory = parentId || null;
         }
         if (newImage) {
@@ -88,7 +84,9 @@ export const updateCategory = async (req, res, next) => {
                 cloudinaryId: optimizeCategory(uploading.secure_url),
                 publicId: uploading.public_id,
             };
+            console.log(updates);
         }
+        console.log(updates);
         const updatedCategory = await category.findByIdAndUpdate(CategoryID, { $set: updates }, { runValidators: true, returnDocument: "after" });
         if (!updatedCategory) {
             if (replacementPublicId)
@@ -144,7 +142,12 @@ export const specificCategoryName = async (req, res, next) => {
     try {
         const searchTerm = req.query.name;
         const filter = typeof searchTerm === "string" && searchTerm.trim()
-            ? { name: { $regex: searchTerm.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" } }
+            ? {
+                name: {
+                    $regex: searchTerm.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+                    $options: "i",
+                },
+            }
             : {};
         const categories = await category
             .find(filter)
