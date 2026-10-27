@@ -13,7 +13,7 @@ const data = new mongoose.Schema(
       default: null,
     },
     Image: {
-      cloudinaryId: { type: String, required: true, select: false },
+      cloudinaryId: { type: String, required: true },
       publicId: { type: String, required: true },
       _id: { type: mongoose.Schema.ObjectId, auto: true },
     },

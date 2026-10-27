@@ -9,7 +9,7 @@ export const GetCategories = async (req, res, next) => {
         const skip = (page - 1) * limit;
         const parentCategories = await category
             .find(parentFilter)
-            .select("name image _id")
+            .select("name Image _id")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
@@ -18,7 +18,7 @@ export const GetCategories = async (req, res, next) => {
             .find({
             parentCategory: { $in: parentCategories.map(({ _id }) => _id) },
         })
-            .select("name image parentCategory")
+            .select("name Image parentCategory")
             .sort({ createdAt: -1 })
             .lean();
         const childrenByParent = new Map();
@@ -28,9 +28,10 @@ export const GetCategories = async (req, res, next) => {
             siblings.push(child);
             childrenByParent.set(parentId, siblings);
         }
-        const formatedData = parentCategories.map((parent) => ({
+        const formatedData = parentCategories.map(({ Image, ...parent }) => ({
             ...parent,
-            children: childrenByParent.get(String(parent._id)) ?? [],
+            image: Image,
+            children: (childrenByParent.get(String(parent._id)) ?? []).map(({ Image, ...child }) => ({ ...child, image: Image })),
         }));
         res.status(200).json({
             success: true,
