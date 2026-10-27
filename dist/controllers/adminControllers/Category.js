@@ -112,8 +112,8 @@ export const updateCategory = async (req, res, next) => {
             }
             replacementPublicId = uploading.public_id;
             updates.Image = {
-                cloudinaryId: optimizeCategory(uploading.secure_url),
-                publicId: uploading.public_id,
+                cloudinaryId: uploading.public_id,
+                publicId: optimizeCategory(uploading.secure_url),
             };
         }
         if (Object.keys(updates).length === 0) {
