@@ -24,6 +24,7 @@ export const uploadToCloudinary = (buffer) => {
         const source = streamifier.createReadStream(buffer);
         const uploadStream = cloudinary.uploader.upload_stream({
             folder: "photo-api",
+            upload_preset: "ml_default"
         }, (error, result) => {
             if (error)
                 return reject(error);

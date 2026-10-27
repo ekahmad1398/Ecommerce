@@ -34,6 +34,7 @@ export const uploadToCloudinary = (
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: "photo-api",
+        upload_preset:"ml_default"
       },
       (error, result) => {
         if (error) return reject(error);
