@@ -30,7 +30,7 @@ router.get("/getAllCategories", authorize("vendor", "admin"), getAllCategories);
 
 router.use(authorize("admin"));
 
-router.post("/deleteCategory:id", deleteCategory);
+router.delete("/deleteCategory/:id", deleteCategory);
 router.get("/getVendors", gettingVendors);
 router.get("/getAdminOrderFeed", getAdminOrderFeed);
 router.get("/getVendorBalanceLedger", getVendorBalanceLedger);
