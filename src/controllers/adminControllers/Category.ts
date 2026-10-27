@@ -57,8 +57,8 @@ export const createCategory = async (
       name,
       parentCategory: parentCategory || null,
       Image: {
-        cloudinaryId: uploading.secure_url,
-        publicId: uploading.public_id,
+        cloudinaryId: uploading.public_id,
+        publicId: uploading.secure_url,
       },
     });
     res.status(201).json({
