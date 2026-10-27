@@ -1,5 +1,5 @@
 import express from "express";
-import { createCategory, getAllCategories, deleteCategory, updateCategory, } from "../controllers/adminControllers/Category.js";
+import { createCategory, getAllCategories, deleteCategory, updateCategory, specificCategoryName, } from "../controllers/adminControllers/Category.js";
 import authenticate from "../middleware/auth.js";
 import authorize from "../middleware/role.js";
 import { gettingVendors, approaveVendor, } from "../controllers/adminControllers/gettingPendingVendors.js";
@@ -12,8 +12,9 @@ router.use(authenticate);
 router.post("/createCategory", authorize("admin"), upload.single("image"), createCategory);
 router.put("/updateCategory/:id", authorize("admin"), upload.single("image"), updateCategory);
 router.get("/getAllCategories", authorize("vendor", "admin"), getAllCategories);
+router.get("/specificCategoryName", specificCategoryName);
 router.use(authorize("admin"));
-router.post("/deleteCategory:id", deleteCategory);
+router.delete("/deleteCategory/:id", deleteCategory);
 router.get("/getVendors", gettingVendors);
 router.get("/getAdminOrderFeed", getAdminOrderFeed);
 router.get("/getVendorBalanceLedger", getVendorBalanceLedger);
