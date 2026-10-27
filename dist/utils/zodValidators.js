@@ -157,7 +157,8 @@ export const updateproductBodySchema = z.object({
         .pipe(z.array(imagearray).nullable().optional()),
 });
 export const updateCategoryBodySchema = z.object({
-    name: z.string().trim().min(2, "name must be at least 2 characters"),
+    name: z.string().trim().min(2, "name must be at least 2 characters").optional(),
+    parentCategory: z.string().trim().optional(),
     ParentCategory: z.string().trim().optional(),
     image: z.string().url().optional(),
 });

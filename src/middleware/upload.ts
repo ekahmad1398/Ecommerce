@@ -25,17 +25,25 @@ export default upload;
 export const uploadToCloudinary = (
   buffer: Buffer,
 ): Promise<UploadApiResponse | undefined> => {
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+    return Promise.reject(new Error("A non-empty image buffer is required."));
+  }
+
   return new Promise<UploadApiResponse | undefined>((resolve, reject) => {
+    const source = streamifier.createReadStream(buffer);
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: "photo-api",
       },
       (error, result) => {
         if (error) return reject(error);
+        if (!result) return reject(new Error("Cloudinary returned no upload result."));
         resolve(result);
       },
     );
-    streamifier.createReadStream(buffer).pipe(uploadStream);
+    source.on("error", reject);
+    uploadStream.on("error", reject);
+    source.pipe(uploadStream);
   });
 };
 

@@ -15,7 +15,15 @@ export const createCategory = async (
   next: NextFunction,
 ) => {
   try {
-    const { name, parentCategory, image } = req.body;
+    const { name, parentCategory } = req.body;
+    const imageFile = req.file;
+
+    if (!name || typeof name !== "string" || !imageFile) {
+      return res.status(400).json({
+        success: false,
+        message: "Category name and image are required.",
+      });
+    }
 
     const existingCategory = await category.findOne({
       name,
@@ -37,7 +45,7 @@ export const createCategory = async (
       }
     }
 
-    const uploading = await uploadToCloudinary(image);
+    const uploading = await uploadToCloudinary(imageFile.buffer);
     if (!uploading) {
       return res.status(500).json({
         success: false,
@@ -70,12 +78,20 @@ export const updateCategory = async (
 ) => {
   let replacementPublicId: string | undefined;
   try {
-    const validatedData = updateCategoryBodySchema.parse(req.body);
-    const CategoryID = req.params.id;
-    if (!validatedData.name || !CategoryID) {
+    const parsedBody = updateCategoryBodySchema.safeParse(req.body);
+    if (!parsedBody.success) {
       return res.status(400).json({
         success: false,
-        message: "all fields are required",
+        message: "Invalid category data.",
+        errors: parsedBody.error.issues,
+      });
+    }
+    const validatedData = parsedBody.data;
+    const CategoryID = req.params.id;
+    if (!CategoryID) {
+      return res.status(400).json({
+        success: false,
+        message: "A category ID is required.",
       });
     }
     const categoryData = await category.findById(CategoryID);
@@ -88,13 +104,31 @@ export const updateCategory = async (
     const newImage = req.file;
 
     const updates: {
-      name: string;
+      name?: string;
       parentCategory?: string | null;
       Image?: { cloudinaryId: string; publicId: string };
-    } = { name: validatedData.name };
+    } = {};
 
-    if (validatedData.ParentCategory !== undefined) {
-      const parentId = validatedData.ParentCategory.trim();
+    if (validatedData.name !== undefined) {
+      updates.name = validatedData.name;
+    }
+
+    const requestedParent =
+      validatedData.parentCategory ?? validatedData.ParentCategory;
+    if (requestedParent !== undefined) {
+      const parentId = requestedParent.trim();
+      if (parentId && parentId === CategoryID) {
+        return res.status(400).json({
+          success: false,
+          message: "A category cannot be its own parent.",
+        });
+      }
+      if (parentId && !(await category.exists({ _id: parentId }))) {
+        return res.status(404).json({
+          success: false,
+          message: "Parent category not found.",
+        });
+      }
       updates.parentCategory = parentId || null;
     }
 
@@ -111,10 +145,15 @@ export const updateCategory = async (
         cloudinaryId: optimizeCategory(uploading.secure_url),
         publicId: uploading.public_id,
       };
-      console.log(updates)
     }
 
-    console.log(updates)
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Provide at least one category field to update.",
+      });
+    }
+
     const updatedCategory = await category.findByIdAndUpdate(
       CategoryID,
       { $set: updates },

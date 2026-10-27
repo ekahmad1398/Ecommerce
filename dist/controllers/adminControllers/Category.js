@@ -5,7 +5,14 @@ import Product from "../../models/Product.js";
 import { optimizeCategory } from "../../utils/optimizer.js";
 export const createCategory = async (req, res, next) => {
     try {
-        const { name, parentCategory, image } = req.body;
+        const { name, parentCategory } = req.body;
+        const imageFile = req.file;
+        if (!name || typeof name !== "string" || !imageFile) {
+            return res.status(400).json({
+                success: false,
+                message: "Category name and image are required.",
+            });
+        }
         const existingCategory = await category.findOne({
             name,
             parentCategory: parentCategory || null,
@@ -23,7 +30,7 @@ export const createCategory = async (req, res, next) => {
                     .json({ success: false, message: "parent category not found." });
             }
         }
-        const uploading = await uploadToCloudinary(image);
+        const uploading = await uploadToCloudinary(imageFile.buffer);
         if (!uploading) {
             return res.status(500).json({
                 success: false,
@@ -51,12 +58,20 @@ export const createCategory = async (req, res, next) => {
 export const updateCategory = async (req, res, next) => {
     let replacementPublicId;
     try {
-        const validatedData = updateCategoryBodySchema.parse(req.body);
-        const CategoryID = req.params.id;
-        if (!validatedData.name || !CategoryID) {
+        const parsedBody = updateCategoryBodySchema.safeParse(req.body);
+        if (!parsedBody.success) {
             return res.status(400).json({
                 success: false,
-                message: "all fields are required",
+                message: "Invalid category data.",
+                errors: parsedBody.error.issues,
+            });
+        }
+        const validatedData = parsedBody.data;
+        const CategoryID = req.params.id;
+        if (!CategoryID) {
+            return res.status(400).json({
+                success: false,
+                message: "A category ID is required.",
             });
         }
         const categoryData = await category.findById(CategoryID);
@@ -66,9 +81,25 @@ export const updateCategory = async (req, res, next) => {
                 .json({ success: false, message: "categoryData not found." });
         }
         const newImage = req.file;
-        const updates = { name: validatedData.name };
-        if (validatedData.ParentCategory !== undefined) {
-            const parentId = validatedData.ParentCategory.trim();
+        const updates = {};
+        if (validatedData.name !== undefined) {
+            updates.name = validatedData.name;
+        }
+        const requestedParent = validatedData.parentCategory ?? validatedData.ParentCategory;
+        if (requestedParent !== undefined) {
+            const parentId = requestedParent.trim();
+            if (parentId && parentId === CategoryID) {
+                return res.status(400).json({
+                    success: false,
+                    message: "A category cannot be its own parent.",
+                });
+            }
+            if (parentId && !(await category.exists({ _id: parentId }))) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Parent category not found.",
+                });
+            }
             updates.parentCategory = parentId || null;
         }
         if (newImage) {
@@ -84,9 +115,13 @@ export const updateCategory = async (req, res, next) => {
                 cloudinaryId: optimizeCategory(uploading.secure_url),
                 publicId: uploading.public_id,
             };
-            console.log(updates);
         }
-        console.log(updates);
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Provide at least one category field to update.",
+            });
+        }
         const updatedCategory = await category.findByIdAndUpdate(CategoryID, { $set: updates }, { runValidators: true, returnDocument: "after" });
         if (!updatedCategory) {
             if (replacementPublicId)
