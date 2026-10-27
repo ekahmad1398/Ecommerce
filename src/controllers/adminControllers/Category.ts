@@ -157,6 +157,32 @@ export const getAllCategories = async (
   }
 };
 
+export const specificCategoryName = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const searchTerm = req.query.name;
+    const filter =
+      typeof searchTerm === "string" && searchTerm.trim()
+        ? { name: { $regex: searchTerm.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" } }
+        : {};
+
+    const categories = await category
+      .find(filter)
+      .populate("parentCategory", "name")
+      .sort({ name: 1 });
+
+    res.status(200).json({
+      success: true,
+      categories,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const deleteCategory = async (
   req: Request,
   res: Response,
