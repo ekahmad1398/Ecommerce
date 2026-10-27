@@ -66,16 +66,17 @@ export const updateCategory = async (
   res: Response,
   next: NextFunction,
 ) => {
+  let replacementPublicId: string | undefined;
   try {
     const validatedData = updateCategoryBodySchema.parse(req.body);
     const CategoryID = req.params.id;
     if (!validatedData.name || !CategoryID) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: "all fields are required",
       });
     }
-    const newImage = req?.file;
+    const newImage = req.file;
     const categoryData = await category.findById(CategoryID);
 
     if (!categoryData) {
@@ -84,40 +85,63 @@ export const updateCategory = async (
         .json({ success: false, message: "categoryData not found." });
     }
 
-    let imagedata: { cloudinaryId?: string; publicId?: string } = {};
+    const updates: {
+      name: string;
+      parentCategory?: string | null;
+      Image?: { cloudinaryId: string; publicId: string };
+    } = { name: validatedData.name };
+
+    if (validatedData.ParentCategory !== undefined) {
+      const parentId = validatedData.ParentCategory.trim();
+      if (parentId && !(await category.exists({ _id: parentId }))) {
+        return res.status(404).json({
+          success: false,
+          message: "parent category not found.",
+        });
+      }
+      updates.parentCategory = parentId || null;
+    }
 
     if (newImage) {
-      if (categoryData.Image?.cloudinaryId) {
-        await deleteFromCloudinary(categoryData.Image.cloudinaryId);
-      }
-      const newUpload = await uploadToCloudinary(newImage.buffer);
-      if (!newUpload) {
+      const uploading = await uploadToCloudinary(newImage.buffer);
+      if (!uploading) {
         return res.status(500).json({
           success: false,
           message: "Category image upload failed.",
         });
       }
-      imagedata.cloudinaryId = newUpload.public_id;
-      imagedata.publicId = optimizeCategory(newUpload.secure_url);
+      replacementPublicId = uploading.public_id;
+      updates.Image = {
+        cloudinaryId: optimizeCategory(uploading.secure_url),
+        publicId: uploading.public_id,
+      };
     }
 
     const updatedCategory = await category.findByIdAndUpdate(
       CategoryID,
-      {
-        $set: {
-          name: validatedData.name,
-          image: imagedata,
-          parentCategory: validatedData.ParentCategory,
-        },
-      },
+      { $set: updates },
       { runValidators: true, returnDocument: "after" },
     );
+
+    if (!updatedCategory) {
+      if (replacementPublicId) await deleteFromCloudinary(replacementPublicId);
+      return res.status(404).json({
+        success: false,
+        message: "categoryData not found.",
+      });
+    }
+
+    if (replacementPublicId && categoryData.Image?.publicId) {
+      await deleteFromCloudinary(categoryData.Image.publicId);
+      replacementPublicId = undefined;
+    }
 
     res.status(200).json({
       success: true,
       updatedCategory,
     });
   } catch (error) {
+    if (replacementPublicId) await deleteFromCloudinary(replacementPublicId);
     next(error);
   }
 };
@@ -190,7 +214,7 @@ export const deleteCategory = async (
 ) => {
   try {
     const { id } = req.params;
-    const productCategory = await Product.findOne({ category: id }).lean();
+    const productCategory = await Product.findOne({ categoryID: id }).lean();
     if (productCategory) {
       return res.status(400).json({
         success: false,
@@ -213,7 +237,7 @@ export const deleteCategory = async (
       });
     }
     await deleteFromCloudinary(Deletingcategory.Image?.publicId);
-    await category.findByIdAndDelete(Deletingcategory);
+    await category.findByIdAndDelete(id);
     res.status(200).json({
       success: true,
       message: "the category is deleted successfully.",
