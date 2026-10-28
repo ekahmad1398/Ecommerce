@@ -1,5 +1,6 @@
 import multer from "multer";
 import cloudinary from "../config/cloudinary.js";
+import env from "../config.js";
 import streamifier from "streamifier";
 const storage = multer.memoryStorage();
 const fileFilter = (req, file, callback) => {
@@ -13,7 +14,7 @@ const fileFilter = (req, file, callback) => {
 const upload = multer({
     storage,
     fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 },
+    limits: { fileSize: 10 * 1024 * 1024 },
 });
 export default upload;
 export const uploadToCloudinary = (buffer) => {
@@ -23,8 +24,8 @@ export const uploadToCloudinary = (buffer) => {
     return new Promise((resolve, reject) => {
         const source = streamifier.createReadStream(buffer);
         const uploadStream = cloudinary.uploader.upload_stream({
-            folder: "photo-api",
-            upload_preset: "ml_default"
+            folder: "for-uploading-ecommerce",
+            upload_preset: env.CLOUDINARY_UPLOAD_PRESET,
         }, (error, result) => {
             if (error)
                 return reject(error);

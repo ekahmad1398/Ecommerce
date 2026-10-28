@@ -9,6 +9,7 @@ const env = cleanEnv(process.env, {
   CLOUDINARY_CLOUD_NAME: str(),
   CLOUDINARY_API_KEY: str(),
   CLOUDINARY_API_SECRET: str(),
+  CLOUDINARY_UPLOAD_PRESET: str(),
   BETTER_AUTH_API_KEY: str(),
   JWT_temp_token: str(),
   Expiry_For_Temp_JWT: num(),
