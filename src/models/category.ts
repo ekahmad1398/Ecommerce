@@ -1,5 +1,10 @@
 import mongoose from "mongoose";
 
+const imageSchema = new mongoose.Schema({
+  cloudinaryId: { type: String, required: true },
+  publicId: { type: String, required: true },
+});
+
 const data = new mongoose.Schema(
   {
     name: {
@@ -12,11 +17,7 @@ const data = new mongoose.Schema(
       ref: "category",
       default: null,
     },
-    Image: {
-      cloudinaryId: { type: String, required: true },
-      publicId: { type: String, required: true },
-      _id: { type: mongoose.Schema.ObjectId, auto: true },
-    },
+    Image: { type: imageSchema, default: undefined },
   },
   { timestamps: true },
 );

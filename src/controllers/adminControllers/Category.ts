@@ -21,7 +21,7 @@ export const createCategory = async (
     if (!name || typeof name !== "string") {
       return res.status(400).json({
         success: false,
-        message: "Category name and image are required.",
+        message: "Category name is required.",
       });
     }
 

@@ -10,7 +10,7 @@ export const createCategory = async (req, res, next) => {
         if (!name || typeof name !== "string") {
             return res.status(400).json({
                 success: false,
-                message: "Category name and image are required.",
+                message: "Category name is required.",
             });
         }
         const existingCategory = await category.findOne({
