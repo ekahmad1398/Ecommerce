@@ -7,7 +7,7 @@ export const createCategory = async (req, res, next) => {
     try {
         const { name, parentCategory } = req.body;
         const imageFile = req.file;
-        if (!name || typeof name !== "string" || !imageFile) {
+        if (!name || typeof name !== "string") {
             return res.status(400).json({
                 success: false,
                 message: "Category name and image are required.",
@@ -30,21 +30,21 @@ export const createCategory = async (req, res, next) => {
                     .json({ success: false, message: "parent category not found." });
             }
         }
-        const uploading = await uploadToCloudinary(imageFile.buffer);
-        if (!uploading) {
-            return res.status(500).json({
-                success: false,
-                message: "Category image upload failed.",
-            });
-        }
-        const newCategory = await category.create({
-            name,
-            parentCategory: parentCategory || null,
-            Image: {
+        let data = { name: name, parentCategory: parentCategory };
+        if (imageFile) {
+            const uploading = await uploadToCloudinary(imageFile.buffer);
+            if (!uploading) {
+                return res.status(500).json({
+                    success: false,
+                    message: "Category image upload failed.",
+                });
+            }
+            data.Image = {
                 cloudinaryId: uploading.public_id,
                 publicId: uploading.secure_url,
-            },
-        });
+            };
+        }
+        const newCategory = await category.create(data);
         res.status(201).json({
             success: true,
             category: newCategory,
