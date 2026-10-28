@@ -58,7 +58,7 @@ export const createCategory = async (
         });
       }
       data.Image = {
-        cloudinaryId: uploading.public_id,
+        cloudinaryId: optimizeCategory(uploading.public_id),
         publicId: uploading.secure_url,
       };
     }
