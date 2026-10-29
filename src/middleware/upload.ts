@@ -3,6 +3,7 @@ import cloudinary from "../config/cloudinary.js";
 import env from "../config.js";
 import streamifier from "streamifier";
 import type { UploadApiResponse } from "cloudinary";
+import { randomUUID } from "crypto";
 
 const storage = multer.memoryStorage();
 
@@ -35,10 +36,13 @@ export const uploadToCloudinary = (
       {
         folder: "for-uploading-ecommerce",
         upload_preset: env.CLOUDINARY_UPLOAD_PRESET,
+        overwrite: false,
+        public_id: randomUUID(),
       },
       (error, result) => {
         if (error) return reject(error);
-        if (!result) return reject(new Error("Cloudinary returned no upload result."));
+        if (!result)
+          return reject(new Error("Cloudinary returned no upload result."));
         resolve(result);
       },
     );

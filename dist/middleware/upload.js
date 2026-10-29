@@ -2,6 +2,7 @@ import multer from "multer";
 import cloudinary from "../config/cloudinary.js";
 import env from "../config.js";
 import streamifier from "streamifier";
+import { randomUUID } from "crypto";
 const storage = multer.memoryStorage();
 const fileFilter = (req, file, callback) => {
     if (file.mimetype.startsWith("image/")) {
@@ -26,6 +27,8 @@ export const uploadToCloudinary = (buffer) => {
         const uploadStream = cloudinary.uploader.upload_stream({
             folder: "for-uploading-ecommerce",
             upload_preset: env.CLOUDINARY_UPLOAD_PRESET,
+            overwrite: false,
+            public_id: randomUUID(),
         }, (error, result) => {
             if (error)
                 return reject(error);
