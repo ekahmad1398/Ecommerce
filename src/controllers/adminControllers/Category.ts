@@ -280,7 +280,10 @@ export const deleteCategory = async (
         message: "Category not found.",
       });
     }
-    await deleteFromCloudinary(Deletingcategory.Image?.publicId);
+    const deletingImage = await deleteFromCloudinary(Deletingcategory.Image?.cloudinaryId);
+    if(!deletingImage){
+      return res.status(500).json({success:false, message:"error in deleting image/"})
+    }
     await category.findByIdAndDelete(id);
     res.status(200).json({
       success: true,
