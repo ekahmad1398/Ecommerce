@@ -30,7 +30,7 @@ export const createCategory = async (req, res, next) => {
                     .json({ success: false, message: "parent category not found." });
             }
         }
-        let data = { name: name, parentCategory: parentCategory };
+        let data = { name, parentCategory: parentCategory || null };
         if (imageFile) {
             const uploading = await uploadToCloudinary(imageFile.buffer);
             if (!uploading) {
@@ -81,12 +81,11 @@ export const updateCategory = async (req, res, next) => {
                 .json({ success: false, message: "categoryData not found." });
         }
         const newImage = req.file;
-        const updates = {};
+        const updates = { parentCategory: null };
         if (validatedData.name !== undefined) {
             updates.name = validatedData.name;
         }
         const requestedParent = validatedData.parentCategory;
-        updates.parentCategory = "";
         if (requestedParent !== undefined) {
             const parentId = requestedParent.trim();
             if (parentId && parentId === CategoryID) {

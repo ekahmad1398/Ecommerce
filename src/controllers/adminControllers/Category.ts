@@ -46,9 +46,9 @@ export const createCategory = async (
     }
     let data: {
       name: string;
-      parentCategory: string;
+      parentCategory: string | null;
       Image?: { cloudinaryId: string; publicId: string };
-    } = { name: name, parentCategory: parentCategory };
+    } = { name, parentCategory: parentCategory || null };
     if (imageFile) {
       const uploading = await uploadToCloudinary(imageFile.buffer);
       if (!uploading) {
@@ -110,14 +110,13 @@ export const updateCategory = async (
       name?: string;
       parentCategory?: string | null;
       Image?: { cloudinaryId: string; publicId: string };
-    } = {};
+    } = { parentCategory: null };
 
     if (validatedData.name !== undefined) {
       updates.name = validatedData.name;
     }
 
     const requestedParent = validatedData.parentCategory;
-    updates.parentCategory = "";
     if (requestedParent !== undefined) {
       const parentId = requestedParent.trim();
       if (parentId && parentId === CategoryID) {
