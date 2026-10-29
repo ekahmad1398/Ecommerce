@@ -117,7 +117,7 @@ export const updateCategory = async (
     }
 
     const requestedParent = validatedData.parentCategory;
-    updates.parentCategory = requestedParent;
+    updates.parentCategory = null;
     if (requestedParent !== undefined) {
       const parentId = requestedParent.trim();
       if (parentId && parentId === CategoryID) {

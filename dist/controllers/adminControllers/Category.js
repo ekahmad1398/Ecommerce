@@ -86,7 +86,7 @@ export const updateCategory = async (req, res, next) => {
             updates.name = validatedData.name;
         }
         const requestedParent = validatedData.parentCategory;
-        updates.parentCategory = requestedParent;
+        updates.parentCategory = null;
         if (requestedParent !== undefined) {
             const parentId = requestedParent.trim();
             if (parentId && parentId === CategoryID) {
