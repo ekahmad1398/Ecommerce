@@ -110,7 +110,7 @@ export const updateCategory = async (req, res, next) => {
                     message: "Category image upload failed.",
                 });
             }
-            await deleteFromCloudinary(categoryData.Image?.publicId);
+            await deleteFromCloudinary(categoryData.Image?.cloudinaryId);
             replacementPublicId = uploading.public_id;
             updates.Image = {
                 cloudinaryId: uploading.public_id,
