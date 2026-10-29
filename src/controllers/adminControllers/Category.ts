@@ -142,6 +142,7 @@ export const updateCategory = async (
           message: "Category image upload failed.",
         });
       }
+      await deleteFromCloudinary(categoryData.Image?.publicId);
       replacementPublicId = uploading.public_id;
       updates.Image = {
         cloudinaryId: uploading.public_id,
@@ -155,8 +156,6 @@ export const updateCategory = async (
         message: "Provide at least one category field to update.",
       });
     }
-
-    await deleteFromCloudinary(categoryData.Image?.publicId);
 
     const updatedCategory = await category.findByIdAndUpdate(
       CategoryID,
