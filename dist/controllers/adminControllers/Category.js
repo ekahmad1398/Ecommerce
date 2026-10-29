@@ -122,6 +122,7 @@ export const updateCategory = async (req, res, next) => {
                 message: "Provide at least one category field to update.",
             });
         }
+        await deleteFromCloudinary(categoryData.Image?.publicId);
         const updatedCategory = await category.findByIdAndUpdate(CategoryID, { $set: updates }, { runValidators: true, returnDocument: "after" });
         if (!updatedCategory) {
             if (replacementPublicId)
@@ -223,7 +224,9 @@ export const deleteCategory = async (req, res, next) => {
         }
         const deletingImage = await deleteFromCloudinary(Deletingcategory.Image?.cloudinaryId);
         if (!deletingImage) {
-            return res.status(500).json({ success: false, message: "error in deleting image/" });
+            return res
+                .status(500)
+                .json({ success: false, message: "error in deleting image/" });
         }
         await category.findByIdAndDelete(id);
         res.status(200).json({
