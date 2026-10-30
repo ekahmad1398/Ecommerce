@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import mongoose from "mongoose";
 import category from "../../models/category.js";
 
 import {
@@ -8,6 +9,11 @@ import {
 import { updateCategoryBodySchema } from "../../utils/zodValidators.js";
 import Product from "../../models/Product.js";
 import { optimizeCategory } from "../../utils/optimizer.js";
+
+const refreshChildCount = async (parentId: string) => {
+  const ChildCount = await category.countDocuments({ parentCategory: parentId });
+  await category.findByIdAndUpdate(parentId, { $set: { ChildCount } });
+};
 
 export const createCategory = async (
   req: Request,
@@ -64,6 +70,12 @@ export const createCategory = async (
     }
 
     const newCategory = await category.create(data);
+    if (!newCategory) {
+      return res
+        .status(500)
+        .json({ success: false, message: "error making category." });
+    }
+    if (parentCategory) await refreshChildCount(parentCategory);
     res.status(201).json({
       success: true,
       category: newCategory,
@@ -105,12 +117,13 @@ export const updateCategory = async (
     }
 
     const newImage = req.file;
-
     const updates: {
       name?: string;
       parentCategory?: string | null;
       Image?: { cloudinaryId: string; publicId: string };
-    } = { parentCategory: null };
+    } = {};
+    const oldParentId = categoryData.parentCategory?.toString() ?? null;
+    let newParentId = oldParentId;
 
     if (validatedData.name !== undefined) {
       updates.name = validatedData.name;
@@ -118,8 +131,14 @@ export const updateCategory = async (
 
     const requestedParent = validatedData.parentCategory;
     if (requestedParent !== undefined) {
-      const parentId = requestedParent.trim();
-      if (parentId && parentId === CategoryID) {
+      const parentId = requestedParent.trim() || null;
+      if (parentId && !mongoose.isValidObjectId(parentId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid parent category ID.",
+        });
+      }
+      if (parentId === CategoryID) {
         return res.status(400).json({
           success: false,
           message: "A category cannot be its own parent.",
@@ -131,7 +150,8 @@ export const updateCategory = async (
           message: "Parent category not found.",
         });
       }
-      updates.parentCategory = parentId || null;
+      updates.parentCategory = parentId;
+      newParentId = parentId;
     }
 
     if (newImage) {
@@ -171,6 +191,12 @@ export const updateCategory = async (
       });
     }
 
+    if (oldParentId !== newParentId) {
+      for (const parentId of new Set([oldParentId, newParentId])) {
+        if (parentId) await refreshChildCount(parentId);
+      }
+    }
+
     if (replacementPublicId && categoryData.Image?.publicId) {
       await deleteFromCloudinary(categoryData.Image.publicId);
       replacementPublicId = undefined;
@@ -203,7 +229,7 @@ export const getAllCategories = async (
     const categories = await category
       .find()
       .populate("parentCategory", "name")
-      .sort({ name: 1 })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
@@ -290,7 +316,9 @@ export const deleteCategory = async (
           .json({ success: false, message: "error in deleting image." });
       }
     }
+    const parentId = Deletingcategory.parentCategory?.toString() ?? null;
     await category.findByIdAndDelete(id);
+    if (parentId) await refreshChildCount(parentId);
     res.status(200).json({
       success: true,
       message: "the category is deleted successfully.",

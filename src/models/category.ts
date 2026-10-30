@@ -18,6 +18,7 @@ const data = new mongoose.Schema(
       default: null,
     },
     Image: { type: imageSchema, default: undefined },
+    ChildCount: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

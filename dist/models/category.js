@@ -15,6 +15,7 @@ const data = new mongoose.Schema({
         default: null,
     },
     Image: { type: imageSchema, default: undefined },
+    ChildCount: { type: Number, default: 0 },
 }, { timestamps: true });
 data.index({ name: 1, parentCategory: 1 }, { unique: true });
 export default mongoose.model("category", data);

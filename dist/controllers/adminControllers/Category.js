@@ -1,8 +1,13 @@
+import mongoose from "mongoose";
 import category from "../../models/category.js";
 import { deleteFromCloudinary, uploadToCloudinary, } from "../../middleware/upload.js";
 import { updateCategoryBodySchema } from "../../utils/zodValidators.js";
 import Product from "../../models/Product.js";
 import { optimizeCategory } from "../../utils/optimizer.js";
+const refreshChildCount = async (parentId) => {
+    const ChildCount = await category.countDocuments({ parentCategory: parentId });
+    await category.findByIdAndUpdate(parentId, { $set: { ChildCount } });
+};
 export const createCategory = async (req, res, next) => {
     try {
         const { name, parentCategory } = req.body;
@@ -45,6 +50,13 @@ export const createCategory = async (req, res, next) => {
             };
         }
         const newCategory = await category.create(data);
+        if (!newCategory) {
+            return res
+                .status(500)
+                .json({ success: false, message: "error making category." });
+        }
+        if (parentCategory)
+            await refreshChildCount(parentCategory);
         res.status(201).json({
             success: true,
             category: newCategory,
@@ -81,14 +93,22 @@ export const updateCategory = async (req, res, next) => {
                 .json({ success: false, message: "categoryData not found." });
         }
         const newImage = req.file;
-        const updates = { parentCategory: null };
+        const updates = {};
+        const oldParentId = categoryData.parentCategory?.toString() ?? null;
+        let newParentId = oldParentId;
         if (validatedData.name !== undefined) {
             updates.name = validatedData.name;
         }
         const requestedParent = validatedData.parentCategory;
         if (requestedParent !== undefined) {
-            const parentId = requestedParent.trim();
-            if (parentId && parentId === CategoryID) {
+            const parentId = requestedParent.trim() || null;
+            if (parentId && !mongoose.isValidObjectId(parentId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid parent category ID.",
+                });
+            }
+            if (parentId === CategoryID) {
                 return res.status(400).json({
                     success: false,
                     message: "A category cannot be its own parent.",
@@ -100,7 +120,8 @@ export const updateCategory = async (req, res, next) => {
                     message: "Parent category not found.",
                 });
             }
-            updates.parentCategory = parentId || null;
+            updates.parentCategory = parentId;
+            newParentId = parentId;
         }
         if (newImage) {
             const uploading = await uploadToCloudinary(newImage.buffer);
@@ -132,6 +153,12 @@ export const updateCategory = async (req, res, next) => {
                 message: "categoryData not found.",
             });
         }
+        if (oldParentId !== newParentId) {
+            for (const parentId of new Set([oldParentId, newParentId])) {
+                if (parentId)
+                    await refreshChildCount(parentId);
+            }
+        }
         if (replacementPublicId && categoryData.Image?.publicId) {
             await deleteFromCloudinary(categoryData.Image.publicId);
             replacementPublicId = undefined;
@@ -157,7 +184,7 @@ export const getAllCategories = async (req, res, next) => {
         const categories = await category
             .find()
             .populate("parentCategory", "name")
-            .sort({ name: 1 })
+            .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit);
         res.status(200).json({
@@ -231,7 +258,10 @@ export const deleteCategory = async (req, res, next) => {
                     .json({ success: false, message: "error in deleting image." });
             }
         }
+        const parentId = Deletingcategory.parentCategory?.toString() ?? null;
         await category.findByIdAndDelete(id);
+        if (parentId)
+            await refreshChildCount(parentId);
         res.status(200).json({
             success: true,
             message: "the category is deleted successfully.",
