@@ -93,6 +93,13 @@ export const updateCategory = async (req, res, next) => {
                 .json({ success: false, message: "categoryData not found." });
         }
         const newImage = req.file;
+        const removeImage = validatedData.removeImage === true;
+        if (newImage && removeImage) {
+            return res.status(400).json({
+                success: false,
+                message: "Provide either a replacement image or removeImage=true, not both.",
+            });
+        }
         const updates = {};
         const oldParentId = categoryData.parentCategory?.toString() ?? null;
         let newParentId = oldParentId;
@@ -138,13 +145,17 @@ export const updateCategory = async (req, res, next) => {
                 publicId: optimizeCategory(uploading.secure_url),
             };
         }
-        if (Object.keys(updates).length === 0) {
+        if (Object.keys(updates).length === 0 && !removeImage) {
             return res.status(400).json({
                 success: false,
                 message: "Provide at least one category field to update.",
             });
         }
-        const updatedCategory = await category.findByIdAndUpdate(CategoryID, { $set: updates }, { runValidators: true, returnDocument: "after" });
+        const updateOperation = {
+            ...(Object.keys(updates).length > 0 ? { $set: updates } : {}),
+            ...(removeImage ? { $unset: { Image: 1 } } : {}),
+        };
+        const updatedCategory = await category.findByIdAndUpdate(CategoryID, updateOperation, { runValidators: true, returnDocument: "after" });
         if (!updatedCategory) {
             if (replacementPublicId)
                 await deleteFromCloudinary(replacementPublicId);
@@ -157,6 +168,18 @@ export const updateCategory = async (req, res, next) => {
             for (const parentId of new Set([oldParentId, newParentId])) {
                 if (parentId)
                     await refreshChildCount(parentId);
+            }
+        }
+        if (removeImage) {
+            const imageId = categoryData.Image?.cloudinaryId;
+            if (imageId) {
+                const deletingImage = await deleteFromCloudinary(imageId);
+                if (!deletingImage) {
+                    return res.status(500).json({
+                        success: false,
+                        message: "Image was removed from the category but could not be deleted from Cloudinary.",
+                    });
+                }
             }
         }
         if (replacementPublicId && categoryData.Image?.publicId) {
