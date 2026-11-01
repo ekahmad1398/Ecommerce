@@ -113,7 +113,7 @@ export const otprequest = async (
       id: unlockuser.id,
       role: unlockuser.role,
     });
-    const refreshtoken = refreshjwtfun({
+    const refreshTokenValue = refreshjwtfun({
       id: unlockuser.id,
     });
 
@@ -124,7 +124,7 @@ export const otprequest = async (
       path: "/",
       maxAge: 20 * 60 * 1000,
     });
-    res.cookie("refreshtoken", refreshtoken, {
+    res.cookie("refreshtoken", refreshTokenValue, {
       httpOnly: true,
       secure: true,
       sameSite: env.NODE_ENV === "production" ? "lax" : "none",
