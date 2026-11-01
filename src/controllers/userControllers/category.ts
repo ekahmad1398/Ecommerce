@@ -1,6 +1,72 @@
 import { NextFunction, Request, Response } from "express";
 import category from "../../models/category.js";
 
+export const getHomeCategories = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const requestedLimit = Number(req.query.limit);
+    const requestedPage = Number(req.query.page);
+    const limit = Number.isSafeInteger(requestedLimit) && requestedLimit > 0
+      ? Math.min(requestedLimit, 50)
+      : 10;
+    const page = Number.isSafeInteger(requestedPage) && requestedPage > 0
+      ? requestedPage
+      : 1;
+    const skip = (page - 1) * limit;
+    if (!Number.isSafeInteger(skip)) {
+      return res.status(400).json({
+        success: false,
+        message: "The requested page is too large.",
+      });
+    }
+
+    const collectionName = category.collection.name;
+    const [result] = await category.aggregate([
+      { $match: { parentCategory: null } },
+      {
+        $facet: {
+          metadata: [{ $count: "totalCategories" }],
+          categories: [
+            { $sort: { createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $lookup: {
+                from: collectionName,
+                let: { rootId: "$_id" },
+                pipeline:[
+                  {$match:{ $expr:{$eq: ["$parentCategory", "$$rootId"]}}},
+                  {$sort:{createdAt:1}},
+                  {$limit:4},
+                  { $project: { _id: 1, name: 1, "Image.publicId": 1 } },
+                ],
+                as: "children",
+              },
+            },
+            { $project: { _id: 1, name: 1, children: 1 } },
+          ],
+        },
+      },
+    ]);
+
+    const totalCategories = result?.metadata[0]?.totalCategories ?? 0;
+    const categories = result?.categories ?? [];
+
+    res.status(200).json({
+      success: true,
+      currentPage: page,
+      totalPages: Math.ceil(totalCategories / limit),
+      totalCategories,
+      categories,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const GetCategories = async (
   req: Request,
   res: Response,

@@ -24,5 +24,6 @@ const data = new mongoose.Schema(
 );
 
 data.index({ name: 1, parentCategory: 1 }, { unique: true });
+data.index({ parentCategory: 1, createdAt: -1 });
 
 export default mongoose.model("category", data);
