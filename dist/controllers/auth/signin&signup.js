@@ -175,7 +175,7 @@ export const loginfun = async (req, res, next) => {
         });
         res
             .status(200)
-            .json({ success: true, message: "welcome back", Role: User.role });
+            .json({ success: true, message: "welcome back", role: User.role });
     }
     catch (error) {
         next(error);
