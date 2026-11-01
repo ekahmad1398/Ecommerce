@@ -18,7 +18,22 @@ export const getHomeCategories = async (req, res, next) => {
         }
         const collectionName = category.collection.name;
         const [result] = await category.aggregate([
-            { $match: { parentCategory: null } },
+            // Exclude root categories; candidates must have a parent.
+            { $match: { parentCategory: { $ne: null } } },
+            {
+                // Keep only categories whose parent is a root, so level-three categories are excluded.
+                $lookup: {
+                    from: collectionName,
+                    localField: "parentCategory",
+                    foreignField: "_id",
+                    pipeline: [
+                        { $match: { parentCategory: null } },
+                        { $project: { _id: 1 } },
+                    ],
+                    as: "levelOneParent",
+                },
+            },
+            { $match: { "levelOneParent.0": { $exists: true } } },
             {
                 $facet: {
                     metadata: [{ $count: "totalCategories" }],
@@ -29,9 +44,9 @@ export const getHomeCategories = async (req, res, next) => {
                         {
                             $lookup: {
                                 from: collectionName,
-                                let: { rootId: "$_id" },
+                                let: { levelTwoId: "$_id" },
                                 pipeline: [
-                                    { $match: { $expr: { $eq: ["$parentCategory", "$$rootId"] } } },
+                                    { $match: { $expr: { $eq: ["$parentCategory", "$$levelTwoId"] } } },
                                     { $sort: { createdAt: 1 } },
                                     { $limit: 4 },
                                     { $project: { _id: 1, name: 1, "Image.publicId": 1 } },
