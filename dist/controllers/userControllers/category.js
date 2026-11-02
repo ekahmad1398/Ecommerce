@@ -47,7 +47,7 @@ export const getHomeCategories = async (req, res, next) => {
                                 let: { levelTwoId: "$_id" },
                                 pipeline: [
                                     { $match: { $expr: { $eq: ["$parentCategory", "$$levelTwoId"] } } },
-                                    { $sort: { createdAt: 1 } },
+                                    { $sort: { ProductCount: -1, createdAt: 1, _id: 1 } },
                                     { $limit: 4 },
                                     {
                                         $project: {
