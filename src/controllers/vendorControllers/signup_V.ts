@@ -2,9 +2,18 @@ import type { NextFunction, Request, Response } from "express";
 import { uploadToCloudinary } from "../../middleware/upload.js";
 import Vendor from "../../models/vendor.js";
 
-export const registerVendor = async (req:Request, res:Response, next:NextFunction) => {
+export const registerVendor = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const userId = (req as any).user.id;
+    if ((req as any).user.role === "admin") {
+      return res
+        .status(400)
+        .json({ success: false, message: "Admin cannot become vendor." });
+    }
     const existingUser = await Vendor.findOne({ userid: userId });
     if (existingUser) {
       res
@@ -82,7 +91,11 @@ export const registerVendor = async (req:Request, res:Response, next:NextFunctio
   }
 };
 
-export const getVendorProfile = async (req:Request, res:Response, next:NextFunction) => {
+export const getVendorProfile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const vendorId = (req as any).user?.vendorID;
     const vendorProfile = await Vendor.findById(vendorId);

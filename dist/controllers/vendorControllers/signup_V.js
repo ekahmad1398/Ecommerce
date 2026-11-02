@@ -3,6 +3,11 @@ import Vendor from "../../models/vendor.js";
 export const registerVendor = async (req, res, next) => {
     try {
         const userId = req.user.id;
+        if (req.user.role === "admin") {
+            return res
+                .status(400)
+                .json({ success: false, message: "Admin cannot become vendor." });
+        }
         const existingUser = await Vendor.findOne({ userid: userId });
         if (existingUser) {
             res
