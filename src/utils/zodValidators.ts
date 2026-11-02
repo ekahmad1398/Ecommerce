@@ -40,7 +40,6 @@ export const productBodySchema = z.object({
     })
     .pipe(z.array(z.string()).min(1, "Select at least one color option")),
   status: z.enum(["active", "inactive", "archived"]).default("active"),
-  vendorId: z.email().trim().toLowerCase(),
   price: z
     .string()
     .transform((val) => parseFloat(val))

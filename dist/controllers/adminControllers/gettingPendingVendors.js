@@ -10,7 +10,7 @@ export const gettingVendors = async (req, res, next) => {
         const statusFilter = status ? { status } : undefined;
         const totalVendors = await vendor.countDocuments(statusFilter);
         const totalPages = Math.ceil(totalVendors / limit);
-        const page = Math.min(Math.max(Number(req.query.page) || 1, 1), totalPages);
+        const page = Math.min(Math.max(Number(req.query.page) || 1, 1), Math.max(totalPages, 1));
         const skip = (page - 1) * limit;
         const vendors = await vendor
             .find(statusFilter)
@@ -20,7 +20,7 @@ export const gettingVendors = async (req, res, next) => {
             .limit(limit);
         res.status(200).json({
             success: true,
-            cuurentPage: page,
+            currentPage: page,
             totalPages,
             totalVendors,
             vendors,

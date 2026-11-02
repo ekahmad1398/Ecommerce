@@ -20,7 +20,7 @@ export const CreateVendorProduct = async (req, res, next) => {
         const incomingImages = Array.isArray(req.files) ? req.files : [];
         const targetCategory = await categorySchema.findById(validatedData.categoryID);
         if (!targetCategory) {
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
                 message: "Selected MarketPlace category does not exist.",
             });
@@ -76,6 +76,9 @@ export const CreateVendorProduct = async (req, res, next) => {
             vendorId: vendorID,
             images: imagesData,
             attributes: attribueteArray,
+            status: validatedData.status === "archived"
+                ? "archieved"
+                : validatedData.status,
         });
         res.status(201).json({
             success: true,

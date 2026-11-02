@@ -60,16 +60,16 @@ export const registerVendor = async (req, res, next) => {
 };
 export const getVendorProfile = async (req, res, next) => {
     try {
-        const userId = req.user.vendorID;
-        const vendor = await Vendor.findById(userId);
-        if (!vendor) {
-            res
+        const vendorId = req.user?.vendorID;
+        const vendorProfile = await Vendor.findById(vendorId);
+        if (!vendorProfile) {
+            return res
                 .status(404)
                 .json({ success: false, message: "Vendor profile not found." });
         }
-        res.status(201).json({
+        return res.status(200).json({
             success: true,
-            vendor,
+            vendor: vendorProfile,
         });
     }
     catch (error) {
