@@ -5,7 +5,9 @@ import { updateCategoryBodySchema } from "../../utils/zodValidators.js";
 import Product from "../../models/Product.js";
 import { optimizeCategory } from "../../utils/optimizer.js";
 const refreshChildCount = async (parentId) => {
-    const ChildCount = await category.countDocuments({ parentCategory: parentId });
+    const ChildCount = await category.countDocuments({
+        parentCategory: parentId,
+    });
     await category.findByIdAndUpdate(parentId, { $set: { ChildCount } });
 };
 export const createCategory = async (req, res, next) => {

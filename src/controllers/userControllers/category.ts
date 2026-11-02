@@ -166,7 +166,7 @@ export const GetCategories = async (
     const parentCategories = await category
       .find(parentFilter)
       .select("name Image _id ProductCount")
-      .sort({ createdAt: -1 })
+      .sort({ ProductCount: -1 })
       .skip(skip)
       .limit(limit)
       .lean();

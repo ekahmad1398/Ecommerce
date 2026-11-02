@@ -11,7 +11,9 @@ import Product from "../../models/Product.js";
 import { optimizeCategory } from "../../utils/optimizer.js";
 
 const refreshChildCount = async (parentId: string) => {
-  const ChildCount = await category.countDocuments({ parentCategory: parentId });
+  const ChildCount = await category.countDocuments({
+    parentCategory: parentId,
+  });
   await category.findByIdAndUpdate(parentId, { $set: { ChildCount } });
 };
 
@@ -121,7 +123,8 @@ export const updateCategory = async (
     if (newImage && removeImage) {
       return res.status(400).json({
         success: false,
-        message: "Provide either a replacement image or removeImage=true, not both.",
+        message:
+          "Provide either a replacement image or removeImage=true, not both.",
       });
     }
 
@@ -292,7 +295,7 @@ export const specificCategoryName = async (
 
     if (req.query.leafOnly === "true") {
       const parentCategoryIds = await category.distinct("parentCategory", {
-          parentCategory: { $ne: null },
+        parentCategory: { $ne: null },
       });
       Object.assign(filter, { _id: { $nin: parentCategoryIds } });
     }
