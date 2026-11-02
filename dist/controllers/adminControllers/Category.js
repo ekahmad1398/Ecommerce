@@ -209,7 +209,7 @@ export const getAllCategories = async (req, res, next) => {
         const categories = await category
             .find()
             .populate("parentCategory", "name")
-            .sort({ createdAt: -1 })
+            .sort({ ProductCount: -1 })
             .skip(skip)
             .limit(limit);
         res.status(200).json({

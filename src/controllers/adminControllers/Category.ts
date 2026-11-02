@@ -258,7 +258,7 @@ export const getAllCategories = async (
     const categories = await category
       .find()
       .populate("parentCategory", "name")
-      .sort({ createdAt: -1 })
+      .sort({ ProductCount: -1 })
       .skip(skip)
       .limit(limit);
 
