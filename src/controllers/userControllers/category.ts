@@ -1,5 +1,4 @@
 import { NextFunction, Request, Response } from "express";
-import Product from "../../models/Product.js";
 import category from "../../models/category.js";
 
 export const getHomeCategories = async (
@@ -10,12 +9,14 @@ export const getHomeCategories = async (
   try {
     const requestedLimit = Number(req.query.limit);
     const requestedPage = Number(req.query.page);
-    const limit = Number.isSafeInteger(requestedLimit) && requestedLimit > 0
-      ? Math.min(requestedLimit, 50)
-      : 10;
-    const page = Number.isSafeInteger(requestedPage) && requestedPage > 0
-      ? requestedPage
-      : 1;
+    const limit =
+      Number.isSafeInteger(requestedLimit) && requestedLimit > 0
+        ? Math.min(requestedLimit, 50)
+        : 10;
+    const page =
+      Number.isSafeInteger(requestedPage) && requestedPage > 0
+        ? requestedPage
+        : 1;
     const skip = (page - 1) * limit;
     if (!Number.isSafeInteger(skip)) {
       return res.status(400).json({
@@ -25,7 +26,6 @@ export const getHomeCategories = async (
     }
 
     const collectionName = category.collection.name;
-    const productCollectionName = Product.collection.name;
     const [result] = await category.aggregate([
       { $match: { parentCategory: { $ne: null } } },
       {
@@ -48,77 +48,35 @@ export const getHomeCategories = async (
           pipeline: [
             { $match: { $expr: { $eq: ["$parentCategory", "$$levelTwoId"] } } },
             {
-              $lookup: {
-                from: productCollectionName,
-                let: { levelThreeId: "$_id" },
-                pipeline: [
-                  {
-                    $match: {
-                      status: "active",
-                      isDeleted: { $ne: true },
-                      $expr: {
-                        $eq: ["$categoryID", "$$levelThreeId"],
-                      },
-                    },
-                  },
-                  { $count: "count" },
-                ],
-                as: "activeProductCount",
-              },
-            },
-            {
               $set: {
                 ProductCount: {
-                  $ifNull: [
-                    { $arrayElemAt: ["$activeProductCount.count", 0] },
-                    0,
-                  ],
+                  $ifNull: ["$ProductCount", 0],
                 },
               },
             },
             { $sort: { ProductCount: -1, createdAt: 1, _id: 1 } },
-            {
-              $group: {
-                _id: null,
-                ProductCount: { $sum: "$ProductCount" },
-                children: {
-                  $push: {
-                    _id: "$_id",
-                    name: "$name",
-                    ProductCount: "$ProductCount",
-                    Image: { publicId: "$Image.publicId" },
-                  },
-                },
-              },
-            },
+            { $limit: 4 },
             {
               $project: {
-                _id: 0,
+                _id: 1,
+                name: 1,
                 ProductCount: 1,
-                children: { $slice: ["$children", 4] },
+                "Image.publicId": 1,
               },
             },
           ],
-          as: "subcategoryStats",
+          as: "children",
         },
       },
       {
         $set: {
           ProductCount: {
-            $ifNull: [
-              { $arrayElemAt: ["$subcategoryStats.ProductCount", 0] },
-              0,
-            ],
+            $ifNull: ["$ProductCount", 0],
           },
-          children: {
-            $ifNull: [
-              { $arrayElemAt: ["$subcategoryStats.children", 0] },
-              [],
-            ],
-          },
+          children: { $ifNull: ["$children", []] },
         },
       },
-      { $unset: ["rootParent", "subcategoryStats"] },
+      { $unset: "rootParent" },
       {
         $facet: {
           metadata: [{ $count: "totalCategories" }],

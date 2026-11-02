@@ -11,8 +11,23 @@ const refreshProductCount = async (categoryId) => {
         status: "active",
         isDeleted: { $ne: true },
     });
-    await categorySchema.findByIdAndUpdate(categoryId, {
+    const updatedCategory = await categorySchema.findByIdAndUpdate(categoryId, {
         $set: { ProductCount },
+    }).select("parentCategory");
+    if (!updatedCategory?.parentCategory)
+        return;
+    const parentId = updatedCategory.parentCategory;
+    const [parentProductCount] = await categorySchema.aggregate([
+        { $match: { parentCategory: parentId } },
+        {
+            $group: {
+                _id: null,
+                ProductCount: { $sum: { $ifNull: ["$ProductCount", 0] } },
+            },
+        },
+    ]);
+    await categorySchema.findByIdAndUpdate(parentId, {
+        $set: { ProductCount: parentProductCount?.ProductCount ?? 0 },
     });
 };
 const normalizeProductStatus = (status) => (status === "archived" ? "archieved" : status);
