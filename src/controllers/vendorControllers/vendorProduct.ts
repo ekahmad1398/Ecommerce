@@ -18,6 +18,7 @@ const refreshProductCount = async (categoryId: string) => {
   const ProductCount = await Product.countDocuments({
     categoryID: categoryId,
     status: "active",
+    isDeleted: { $ne: true },
   });
   await categorySchema.findByIdAndUpdate(categoryId, {
     $set: { ProductCount },
@@ -321,11 +322,19 @@ export const readProduct = async (
   try {
     const { id } = req.params;
 
-    const product = await Product.findById(id);
+    const product = await Product.findByIdAndUpdate(
+      id,
+      { isDeleted: true },
+      { returnDocument: "after" },
+    );
     if (!product) {
-      res.status(404).json({ success: false, message: "product not found." });
+      return res.status(404).json({
+        success: false,
+        message: "product not found.",
+      });
     }
-    res.status(200).json({ success: true, product });
+    await refreshProductCount(String(product.categoryID));
+    return res.status(200).json({ success: true, product });
   } catch (error) {
     next(error);
   }

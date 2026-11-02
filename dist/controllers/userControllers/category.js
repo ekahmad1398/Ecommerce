@@ -1,3 +1,4 @@
+import Product from "../../models/Product.js";
 import category from "../../models/category.js";
 export const getHomeCategories = async (req, res, next) => {
     try {
@@ -17,11 +18,10 @@ export const getHomeCategories = async (req, res, next) => {
             });
         }
         const collectionName = category.collection.name;
+        const productCollectionName = Product.collection.name;
         const [result] = await category.aggregate([
-            // Exclude root categories; candidates must have a parent.
             { $match: { parentCategory: { $ne: null } } },
             {
-                // Keep only categories whose parent is a root, so level-three categories are excluded.
                 $lookup: {
                     from: collectionName,
                     localField: "parentCategory",
@@ -30,37 +30,95 @@ export const getHomeCategories = async (req, res, next) => {
                         { $match: { parentCategory: null } },
                         { $project: { _id: 1 } },
                     ],
-                    as: "levelOneParent",
+                    as: "rootParent",
                 },
             },
-            { $match: { "levelOneParent.0": { $exists: true } } },
+            { $match: { "rootParent.0": { $exists: true } } },
+            {
+                $lookup: {
+                    from: collectionName,
+                    let: { levelTwoId: "$_id" },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ["$parentCategory", "$$levelTwoId"] } } },
+                        {
+                            $lookup: {
+                                from: productCollectionName,
+                                let: { levelThreeId: "$_id" },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            status: "active",
+                                            isDeleted: { $ne: true },
+                                            $expr: {
+                                                $eq: ["$categoryID", "$$levelThreeId"],
+                                            },
+                                        },
+                                    },
+                                    { $count: "count" },
+                                ],
+                                as: "activeProductCount",
+                            },
+                        },
+                        {
+                            $set: {
+                                ProductCount: {
+                                    $ifNull: [
+                                        { $arrayElemAt: ["$activeProductCount.count", 0] },
+                                        0,
+                                    ],
+                                },
+                            },
+                        },
+                        { $sort: { ProductCount: -1, createdAt: 1, _id: 1 } },
+                        {
+                            $group: {
+                                _id: null,
+                                ProductCount: { $sum: "$ProductCount" },
+                                children: {
+                                    $push: {
+                                        _id: "$_id",
+                                        name: "$name",
+                                        ProductCount: "$ProductCount",
+                                        Image: { publicId: "$Image.publicId" },
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                ProductCount: 1,
+                                children: { $slice: ["$children", 4] },
+                            },
+                        },
+                    ],
+                    as: "subcategoryStats",
+                },
+            },
+            {
+                $set: {
+                    ProductCount: {
+                        $ifNull: [
+                            { $arrayElemAt: ["$subcategoryStats.ProductCount", 0] },
+                            0,
+                        ],
+                    },
+                    children: {
+                        $ifNull: [
+                            { $arrayElemAt: ["$subcategoryStats.children", 0] },
+                            [],
+                        ],
+                    },
+                },
+            },
+            { $unset: ["rootParent", "subcategoryStats"] },
             {
                 $facet: {
                     metadata: [{ $count: "totalCategories" }],
                     categories: [
-                        { $sort: { createdAt: -1 } },
+                        { $sort: { ProductCount: -1, createdAt: 1, _id: 1 } },
                         { $skip: skip },
                         { $limit: limit },
-                        {
-                            $lookup: {
-                                from: collectionName,
-                                let: { levelTwoId: "$_id" },
-                                pipeline: [
-                                    { $match: { $expr: { $eq: ["$parentCategory", "$$levelTwoId"] } } },
-                                    { $sort: { ProductCount: -1, createdAt: 1, _id: 1 } },
-                                    { $limit: 4 },
-                                    {
-                                        $project: {
-                                            _id: 1,
-                                            name: 1,
-                                            ProductCount: 1,
-                                            "Image.publicId": 1,
-                                        },
-                                    },
-                                ],
-                                as: "children",
-                            },
-                        },
                         { $project: { _id: 1, name: 1, ProductCount: 1, children: 1 } },
                     ],
                 },
