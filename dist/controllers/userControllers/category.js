@@ -49,12 +49,19 @@ export const getHomeCategories = async (req, res, next) => {
                                     { $match: { $expr: { $eq: ["$parentCategory", "$$levelTwoId"] } } },
                                     { $sort: { createdAt: 1 } },
                                     { $limit: 4 },
-                                    { $project: { _id: 1, name: 1, "Image.publicId": 1 } },
+                                    {
+                                        $project: {
+                                            _id: 1,
+                                            name: 1,
+                                            ProductCount: 1,
+                                            "Image.publicId": 1,
+                                        },
+                                    },
                                 ],
                                 as: "children",
                             },
                         },
-                        { $project: { _id: 1, name: 1, children: 1 } },
+                        { $project: { _id: 1, name: 1, ProductCount: 1, children: 1 } },
                     ],
                 },
             },
@@ -83,7 +90,7 @@ export const GetCategories = async (req, res, next) => {
         const skip = (page - 1) * limit;
         const parentCategories = await category
             .find(parentFilter)
-            .select("name Image _id")
+            .select("name Image _id ProductCount")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
@@ -92,7 +99,7 @@ export const GetCategories = async (req, res, next) => {
             .find({
             parentCategory: { $in: parentCategories.map(({ _id }) => _id) },
         })
-            .select("name Image parentCategory")
+            .select("name Image parentCategory ProductCount")
             .sort({ createdAt: -1 })
             .lean();
         const childrenByParent = new Map();

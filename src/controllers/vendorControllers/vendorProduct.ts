@@ -13,6 +13,20 @@ import {
 
 const MAX_PRODUCT_IMAGES = 5;
 
+const refreshProductCount = async (categoryId: string) => {
+  const ProductCount = await Product.countDocuments({
+    categoryID: categoryId,
+    status: "active",
+  });
+  await categorySchema.findByIdAndUpdate(categoryId, {
+    $set: { ProductCount },
+  });
+};
+
+const normalizeProductStatus = (
+  status: "active" | "inactive" | "archived" | undefined,
+) => (status === "archived" ? "archieved" : status);
+
 export const CreateVendorProduct = async (
   req: Request,
   res: Response,
@@ -102,11 +116,10 @@ export const CreateVendorProduct = async (
       vendorId: vendorID,
       images: imagesData,
       attributes: attribueteArray,
-      status:
-        validatedData.status === "archived"
-          ? "archieved"
-          : validatedData.status,
+      status: normalizeProductStatus(validatedData.status),
     });
+
+    await refreshProductCount(String(addedProduct.categoryID));
 
     res.status(201).json({
       success: true,
@@ -127,7 +140,7 @@ export const UpdateVendorProduct = async (
     const validatedData = updateproductBodySchema.parse(req.body);
     const productID = req.params.id;
     if (!vendorId || !productID) {
-      res.status(403).json({
+      return res.status(403).json({
         success: false,
         message: "access unauthorized. verified vendor required",
       });
@@ -140,6 +153,16 @@ export const UpdateVendorProduct = async (
       return res
         .status(404)
         .json({ success: false, message: "product not found." });
+    }
+
+    if (
+      validatedData.categoryID &&
+      !(await categorySchema.exists({ _id: validatedData.categoryID }))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Selected MarketPlace category does not exist.",
+      });
     }
 
     const clientImages = validatedData.images ?? [];
@@ -188,16 +211,30 @@ export const UpdateVendorProduct = async (
         brand: validatedData.brand,
         colors: validatedData.colors,
         discount: validatedData.discount,
-        status: validatedData.status,
+        status: normalizeProductStatus(validatedData.status),
         images: finalTotalImages,
       },
       { returnDocument: "after", runValidators: true },
     );
 
-    if (!UpdateVendorProduct) {
+    if (!updatedProduct) {
       return res
         .status(404)
         .json({ success: false, message: "the product is not available." });
+    }
+
+    const previousCategoryId = String(product.categoryID);
+    const updatedCategoryId = String(updatedProduct.categoryID);
+    if (
+      product.status !== updatedProduct.status ||
+      previousCategoryId !== updatedCategoryId
+    ) {
+      for (const categoryId of new Set([
+        previousCategoryId,
+        updatedCategoryId,
+      ])) {
+        await refreshProductCount(categoryId);
+      }
     }
 
     res.status(201).json({
@@ -218,13 +255,13 @@ export const deleteVendorProduct = async (
     const vendorId = (req as any).user.vendorID;
     const productID = req.params.id;
     if (!vendorId || !productID) {
-      res.status(403).json({
+      return res.status(403).json({
         success: false,
         message: "access unauthorized. verified vendor required",
       });
     }
 
-    const product = await Product.findById(productID);
+    const product = await Product.findOne({ _id: productID, vendorId });
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -237,6 +274,7 @@ export const deleteVendorProduct = async (
     );
 
     await Product.findByIdAndDelete(product.id);
+    await refreshProductCount(String(product.categoryID));
 
     res.status(200).json({
       success: true,
