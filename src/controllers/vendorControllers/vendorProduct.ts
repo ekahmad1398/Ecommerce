@@ -1,5 +1,6 @@
 import Product, { generateSKU } from "../../models/Product.js";
 import categorySchema from "../../models/category.js";
+import mongoose from "mongoose";
 import type { Request, Response, NextFunction } from "express";
 import {
   uploadToCloudinary,
@@ -27,6 +28,47 @@ const normalizeProductStatus = (
   status: "active" | "inactive" | "archived" | undefined,
 ) => (status === "archived" ? "archieved" : status);
 
+const isLevelThreeCategory = async (categoryId: string) => {
+  if (!mongoose.isValidObjectId(categoryId)) return false;
+
+  const selectedCategory = await categorySchema
+    .findById(categoryId)
+    .select("parentCategory")
+    .lean();
+  if (!selectedCategory?.parentCategory) return false;
+
+  const parentCategory = await categorySchema
+    .findById(selectedCategory.parentCategory)
+    .select("parentCategory")
+    .lean();
+  if (!parentCategory?.parentCategory) return false;
+
+  const grandparentCategory = await categorySchema
+    .findById(parentCategory.parentCategory)
+    .select("parentCategory")
+    .lean();
+  if (!grandparentCategory || grandparentCategory.parentCategory) return false;
+
+  const hasLevelFourChildren = await categorySchema.exists({
+    parentCategory: selectedCategory._id,
+  });
+  return !hasLevelFourChildren;
+};
+
+const validateLevelThreeCategory = async (
+  categoryId: string,
+  res: Response,
+) => {
+  if (await isLevelThreeCategory(categoryId)) return true;
+
+  res.status(400).json({
+    success: false,
+    message:
+      "Select a level-3 category. Other category levels are not allowed.",
+  });
+  return false;
+};
+
 export const CreateVendorProduct = async (
   req: Request,
   res: Response,
@@ -50,15 +92,8 @@ export const CreateVendorProduct = async (
 
     const incomingImages = Array.isArray(req.files) ? req.files : [];
 
-    const targetCategory = await categorySchema.findById(
-      validatedData.categoryID,
-    );
-    if (!targetCategory) {
-      return res.status(400).json({
-        success: false,
-        message: "Selected MarketPlace category does not exist.",
-      });
-    }
+    if (!(await validateLevelThreeCategory(validatedData.categoryID, res)))
+      return;
 
     let imagesData = [];
 
@@ -155,15 +190,8 @@ export const UpdateVendorProduct = async (
         .json({ success: false, message: "product not found." });
     }
 
-    if (
-      validatedData.categoryID &&
-      !(await categorySchema.exists({ _id: validatedData.categoryID }))
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Selected MarketPlace category does not exist.",
-      });
-    }
+    const categoryId = validatedData.categoryID ?? String(product.categoryID);
+    if (!(await validateLevelThreeCategory(categoryId, res))) return;
 
     const clientImages = validatedData.images ?? [];
     if (clientImages.length + newImages.length > MAX_PRODUCT_IMAGES) {

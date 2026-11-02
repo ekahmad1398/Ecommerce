@@ -290,6 +290,13 @@ export const specificCategoryName = async (
           }
         : {};
 
+    if (req.query.leafOnly === "true") {
+      const parentCategoryIds = await category.distinct("parentCategory", {
+          parentCategory: { $ne: null },
+      });
+      Object.assign(filter, { _id: { $nin: parentCategoryIds } });
+    }
+
     const categories = await category
       .find(filter)
       .populate("parentCategory", "name")

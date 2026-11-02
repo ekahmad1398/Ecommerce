@@ -16,6 +16,7 @@ import {
   readProduct,
 } from "../controllers/vendorControllers/vendorProduct.js";
 import { getVendorProducts } from "../controllers/vendorControllers/getVendorProducts.js";
+import { getVendorProductCategories } from "../controllers/vendorControllers/getVendorProductCategories.js";
 import authenticate from "../middleware/auth.js";
 import authorize from "../middleware/role.js";
 import upload from "../middleware/upload.js";
@@ -29,6 +30,7 @@ router.use(authorize("vendor"));
 router.post("/CreateProduct", upload.array("imagestoUpload", 5), CreateVendorProduct);
 router.post("/UpdateProduct/:id", upload.array("imagestoUpload", 5), UpdateVendorProduct);
 router.delete("/deleteProduct/:id", deleteVendorProduct);
+router.get("/productCategories", getVendorProductCategories);
 router.get("/getProducts", getVendorProducts);
 router.get("/readProduct/:id", readProduct);
 router.get("/financeData", getVendorFinancialStatus);
