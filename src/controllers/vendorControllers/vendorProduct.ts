@@ -11,6 +11,8 @@ import {
   updateproductBodySchema,
 } from "../../utils/zodValidators.js";
 
+const MAX_PRODUCT_IMAGES = 5;
+
 export const CreateVendorProduct = async (
   req: Request,
   res: Response,
@@ -141,6 +143,13 @@ export const UpdateVendorProduct = async (
     }
 
     const clientImages = validatedData.images ?? [];
+    if (clientImages.length + newImages.length > MAX_PRODUCT_IMAGES) {
+      return res.status(400).json({
+        success: false,
+        message: `A product can have a maximum of ${MAX_PRODUCT_IMAGES} images.`,
+      });
+    }
+
     const imagesToDelete = product.images.filter(
       (mongoImages) =>
         !clientImages?.some(

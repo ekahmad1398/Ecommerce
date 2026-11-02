@@ -3,6 +3,7 @@ import categorySchema from "../../models/category.js";
 import { uploadToCloudinary, deleteFromCloudinary, } from "../../middleware/upload.js";
 import { optimizefunction } from "../../utils/optimizer.js";
 import { productBodySchema, updateproductBodySchema, } from "../../utils/zodValidators.js";
+const MAX_PRODUCT_IMAGES = 5;
 export const CreateVendorProduct = async (req, res, next) => {
     try {
         const vendorID = req.user.vendorID;
@@ -108,6 +109,12 @@ export const UpdateVendorProduct = async (req, res, next) => {
                 .json({ success: false, message: "product not found." });
         }
         const clientImages = validatedData.images ?? [];
+        if (clientImages.length + newImages.length > MAX_PRODUCT_IMAGES) {
+            return res.status(400).json({
+                success: false,
+                message: `A product can have a maximum of ${MAX_PRODUCT_IMAGES} images.`,
+            });
+        }
         const imagesToDelete = product.images.filter((mongoImages) => !clientImages?.some((clientImg) => String(clientImg._id) === String(mongoImages._id)));
         if (imagesToDelete.length > 0) {
             await Promise.all(imagesToDelete.map((image) => deleteFromCloudinary(image.publicId)));
