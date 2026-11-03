@@ -175,16 +175,13 @@ export const UpdateVendorProduct = async (req, res, next) => {
             });
         }
         const imagesToDelete = product.images.filter((mongoImages) => !clientImages?.some((clientImg) => String(clientImg._id) === String(mongoImages._id)));
-        if (imagesToDelete.length > 0) {
-            await Promise.all(imagesToDelete.map((image) => deleteFromCloudinary(image.publicId)));
-        }
         let newUploadedImages = [];
         if (newImages.length > 0) {
             const result = (await Promise.all(newImages.map((file) => uploadToCloudinary(file.buffer))));
             for (const data of result) {
                 newUploadedImages.push({
-                    cloudinaryId: data.secure_url,
-                    publicId: data.public_id,
+                    cloudinaryId: data.public_id,
+                    publicId: optimizefunction(data.secure_url),
                 });
             }
         }
@@ -205,6 +202,9 @@ export const UpdateVendorProduct = async (req, res, next) => {
             return res
                 .status(404)
                 .json({ success: false, message: "the product is not available." });
+        }
+        if (imagesToDelete.length > 0) {
+            await Promise.all(imagesToDelete.map((image) => deleteFromCloudinary(image.cloudinaryId)));
         }
         const previousCategoryId = String(product.categoryID);
         const updatedCategoryId = String(updatedProduct.categoryID);
@@ -243,7 +243,7 @@ export const deleteVendorProduct = async (req, res, next) => {
                 message: "product not found.",
             });
         }
-        await Promise.all(product.images.map((image) => deleteFromCloudinary(image.publicId)));
+        await Promise.all(product.images.map((image) => deleteFromCloudinary(image.cloudinaryId)));
         await Product.findByIdAndDelete(product.id);
         await refreshProductCount(String(product.categoryID));
         res.status(200).json({
@@ -258,14 +258,24 @@ export const deleteVendorProduct = async (req, res, next) => {
 export const readProduct = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const product = await Product.findByIdAndUpdate(id, { isDeleted: true }, { returnDocument: "after" });
+        const vendorId = req.user.vendorID;
+        if (!vendorId || !mongoose.isValidObjectId(id)) {
+            return res.status(404).json({
+                success: false,
+                message: "product not found.",
+            });
+        }
+        const product = await Product.findOne({
+            _id: id,
+            vendorId,
+            isDeleted: { $ne: true },
+        }).lean();
         if (!product) {
             return res.status(404).json({
                 success: false,
                 message: "product not found.",
             });
         }
-        await refreshProductCount(String(product.categoryID));
         return res.status(200).json({ success: true, product });
     }
     catch (error) {

@@ -39,8 +39,8 @@ export const registerVendor = async (req, res, next) => {
         };
         if (companyImage) {
             const result = (await uploadToCloudinary(req.file.buffer));
-            image.cloudinaryId = result.secure_url;
-            image.publicId = result.public_id;
+            image.cloudinaryId = result.public_id;
+            image.publicId = result.secure_url;
         }
         const newVendors = await Vendor.create({
             userid: userId,

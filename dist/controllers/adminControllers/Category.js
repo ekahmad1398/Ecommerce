@@ -47,8 +47,8 @@ export const createCategory = async (req, res, next) => {
                 });
             }
             data.Image = {
-                cloudinaryId: optimizeCategory(uploading.public_id),
-                publicId: uploading.secure_url,
+                cloudinaryId: uploading.public_id,
+                publicId: optimizeCategory(uploading.secure_url),
             };
         }
         const newCategory = await category.create(data);
@@ -70,7 +70,7 @@ export const createCategory = async (req, res, next) => {
     }
 };
 export const updateCategory = async (req, res, next) => {
-    let replacementPublicId;
+    let replacementCloudinaryId;
     try {
         const parsedBody = updateCategoryBodySchema.safeParse(req.body);
         if (!parsedBody.success) {
@@ -140,8 +140,7 @@ export const updateCategory = async (req, res, next) => {
                     message: "Category image upload failed.",
                 });
             }
-            await deleteFromCloudinary(categoryData.Image?.cloudinaryId);
-            replacementPublicId = uploading.public_id;
+            replacementCloudinaryId = uploading.public_id;
             updates.Image = {
                 cloudinaryId: uploading.public_id,
                 publicId: optimizeCategory(uploading.secure_url),
@@ -159,8 +158,9 @@ export const updateCategory = async (req, res, next) => {
         };
         const updatedCategory = await category.findByIdAndUpdate(CategoryID, updateOperation, { runValidators: true, returnDocument: "after" });
         if (!updatedCategory) {
-            if (replacementPublicId)
-                await deleteFromCloudinary(replacementPublicId);
+            if (replacementCloudinaryId) {
+                await deleteFromCloudinary(replacementCloudinaryId);
+            }
             return res.status(404).json({
                 success: false,
                 message: "categoryData not found.",
@@ -184,9 +184,9 @@ export const updateCategory = async (req, res, next) => {
                 }
             }
         }
-        if (replacementPublicId && categoryData.Image?.publicId) {
-            await deleteFromCloudinary(categoryData.Image.publicId);
-            replacementPublicId = undefined;
+        if (replacementCloudinaryId) {
+            await deleteFromCloudinary(categoryData.Image?.cloudinaryId);
+            replacementCloudinaryId = undefined;
         }
         res.status(200).json({
             success: true,
@@ -194,8 +194,9 @@ export const updateCategory = async (req, res, next) => {
         });
     }
     catch (error) {
-        if (replacementPublicId)
-            await deleteFromCloudinary(replacementPublicId);
+        if (replacementCloudinaryId) {
+            await deleteFromCloudinary(replacementCloudinaryId);
+        }
         next(error);
     }
 };

@@ -228,12 +228,6 @@ export const UpdateVendorProduct = async (
         ),
     );
 
-    if (imagesToDelete.length > 0) {
-      await Promise.all(
-        imagesToDelete.map((image) => deleteFromCloudinary(image.publicId)),
-      );
-    }
-
     let newUploadedImages = [];
     if (newImages.length > 0) {
       const result = (await Promise.all(
@@ -241,8 +235,8 @@ export const UpdateVendorProduct = async (
       )) as Array<{ secure_url: string; public_id: string }>;
       for (const data of result) {
         newUploadedImages.push({
-          cloudinaryId: data.secure_url,
-          publicId: data.public_id,
+          cloudinaryId: data.public_id,
+          publicId: optimizefunction(data.secure_url),
         });
       }
     }
@@ -269,6 +263,12 @@ export const UpdateVendorProduct = async (
       return res
         .status(404)
         .json({ success: false, message: "the product is not available." });
+    }
+
+    if (imagesToDelete.length > 0) {
+      await Promise.all(
+        imagesToDelete.map((image) => deleteFromCloudinary(image.cloudinaryId)),
+      );
     }
 
     const previousCategoryId = String(product.categoryID);
@@ -318,7 +318,7 @@ export const deleteVendorProduct = async (
     }
 
     await Promise.all(
-      product.images.map((image) => deleteFromCloudinary(image.publicId)),
+      product.images.map((image) => deleteFromCloudinary(image.cloudinaryId)),
     );
 
     await Product.findByIdAndDelete(product.id);
@@ -340,19 +340,25 @@ export const readProduct = async (
 ) => {
   try {
     const { id } = req.params;
+    const vendorId = (req as any).user.vendorID;
+    if (!vendorId || !mongoose.isValidObjectId(id)) {
+      return res.status(404).json({
+        success: false,
+        message: "product not found.",
+      });
+    }
 
-    const product = await Product.findByIdAndUpdate(
-      id,
-      { isDeleted: true },
-      { returnDocument: "after" },
-    );
+    const product = await Product.findOne({
+      _id: id,
+      vendorId,
+      isDeleted: { $ne: true },
+    }).lean();
     if (!product) {
       return res.status(404).json({
         success: false,
         message: "product not found.",
       });
     }
-    await refreshProductCount(String(product.categoryID));
     return res.status(200).json({ success: true, product });
   } catch (error) {
     next(error);

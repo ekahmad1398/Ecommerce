@@ -12,11 +12,8 @@ const attributeItemSchema = z.object({
 });
 
 const imagearray = z.object({
-  cloudinaryId: z.string().url("must be a valid image link."),
-  publicId: z
-    .string()
-    .trim()
-    .min(1, "At least a publicId should be given for image."),
+  cloudinaryId: z.string().trim().min(1, "A Cloudinary image ID is required."),
+  publicId: z.string().url("A valid image URL is required."),
   _id: z.string().trim().min(1, "At least an _id is needed for image."),
 });
 

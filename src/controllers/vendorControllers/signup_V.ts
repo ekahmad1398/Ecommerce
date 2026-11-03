@@ -64,8 +64,8 @@ export const registerVendor = async (
         secure_url: string;
         public_id: string;
       };
-      image.cloudinaryId = result.secure_url;
-      image.publicId = result.public_id;
+      image.cloudinaryId = result.public_id;
+      image.publicId = result.secure_url;
     }
 
     const newVendors = await Vendor.create({
