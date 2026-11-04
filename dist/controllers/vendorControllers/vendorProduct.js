@@ -5,6 +5,30 @@ import { uploadToCloudinary, deleteFromCloudinary, } from "../../middleware/uplo
 import { optimizefunction } from "../../utils/optimizer.js";
 import { productBodySchema, updateproductBodySchema, } from "../../utils/zodValidators.js";
 const MAX_PRODUCT_IMAGES = 5;
+const resolveImageOrder = (rawOrder, expectedTokens) => {
+    if (rawOrder === undefined)
+        return expectedTokens;
+    if (typeof rawOrder !== "string")
+        return null;
+    let parsedOrder;
+    try {
+        parsedOrder = JSON.parse(rawOrder);
+    }
+    catch {
+        return null;
+    }
+    if (!Array.isArray(parsedOrder) ||
+        !parsedOrder.every((token) => typeof token === "string")) {
+        return null;
+    }
+    const tokens = new Set(parsedOrder);
+    if (parsedOrder.length !== expectedTokens.length ||
+        tokens.size !== parsedOrder.length ||
+        expectedTokens.some((token) => !tokens.has(token))) {
+        return null;
+    }
+    return parsedOrder;
+};
 const refreshProductCount = async (categoryId) => {
     const ProductCount = await Product.countDocuments({
         categoryID: categoryId,
@@ -81,11 +105,26 @@ export const CreateVendorProduct = async (req, res, next) => {
             });
         }
         const incomingImages = Array.isArray(req.files) ? req.files : [];
+        const uploadTokens = incomingImages.map((_, index) => `new:${index}`);
+        const imageOrder = resolveImageOrder(req.body.imageOrder, uploadTokens);
+        if (!imageOrder) {
+            return res.status(400).json({
+                success: false,
+                message: "The image order is invalid.",
+            });
+        }
         if (!(await validateLevelThreeCategory(validatedData.categoryID, res)))
             return;
         let imagesData = [];
         if (incomingImages.length > 0) {
-            const result = (await Promise.all(incomingImages.map((file) => uploadToCloudinary(file.buffer))));
+            const orderedIncomingImages = imageOrder.map((token) => {
+                const index = Number(token.slice("new:".length));
+                const file = incomingImages[index];
+                if (!file)
+                    throw new Error("Image order refers to an unavailable upload.");
+                return file;
+            });
+            const result = (await Promise.all(orderedIncomingImages.map((file) => uploadToCloudinary(file.buffer))));
             for (const data of result) {
                 const optimizedImage = optimizefunction(data.secure_url);
                 imagesData.push({
@@ -174,6 +213,17 @@ export const UpdateVendorProduct = async (req, res, next) => {
                 message: `A product can have a maximum of ${MAX_PRODUCT_IMAGES} images.`,
             });
         }
+        const expectedImageTokens = [
+            ...clientImages.map((image) => `existing:${image._id}`),
+            ...newImages.map((_, index) => `new:${index}`),
+        ];
+        const imageOrder = resolveImageOrder(req.body.imageOrder, expectedImageTokens);
+        if (!imageOrder) {
+            return res.status(400).json({
+                success: false,
+                message: "The image order is invalid.",
+            });
+        }
         const imagesToDelete = product.images.filter((mongoImages) => !clientImages?.some((clientImg) => String(clientImg._id) === String(mongoImages._id)));
         let newUploadedImages = [];
         if (newImages.length > 0) {
@@ -185,7 +235,19 @@ export const UpdateVendorProduct = async (req, res, next) => {
                 });
             }
         }
-        const finalTotalImages = [...newUploadedImages, ...clientImages];
+        const imagesByToken = new Map();
+        clientImages.forEach((image) => {
+            imagesByToken.set(`existing:${image._id}`, image);
+        });
+        newUploadedImages.forEach((image, index) => {
+            imagesByToken.set(`new:${index}`, image);
+        });
+        const finalTotalImages = imageOrder.map((token) => {
+            const image = imagesByToken.get(token);
+            if (!image)
+                throw new Error("Image order refers to an unavailable image.");
+            return image;
+        });
         const updatedProduct = await Product.findOneAndUpdate({ _id: productID, vendorId }, {
             name: validatedData.name,
             description: validatedData.description,

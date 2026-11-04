@@ -1,53 +1,77 @@
+import mongoose from "mongoose";
 import Product from "../../models/Product.js";
+import category from "../../models/category.js";
+const getPositiveInteger = (value, fallback, maximum) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed)
+        ? Math.min(Math.max(Math.floor(parsed), 1), maximum)
+        : fallback;
+};
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 export const getvendorLogisticData = async (req, res, next) => {
     try {
-        const vendorID = req.user.vendorID;
-        const stockFilter = req.query.stock ?? "all";
-        const totalProducts = await Product.countDocuments({
-            vendorID,
-            status: "active",
-        });
-        const limit = Math.min(Math.max(Number(req.query.limit || 10)), 50);
-        const totalPages = Math.ceil(totalProducts / limit);
-        const page = Math.min(Math.max(Number(req.query.page) || 1, 1), totalPages);
-        const skip = (page - 1) * limit;
+        const vendorID = req.user?.vendorID;
+        const vendorObjectId = new mongoose.Types.ObjectId(vendorID);
+        const limit = getPositiveInteger(req.query.limit, 10, 50);
+        const page = getPositiveInteger(req.query.page, 1, Number.MAX_SAFE_INTEGER);
+        const search = typeof req.query.search === "string"
+            ? req.query.search.trim().slice(0, 100)
+            : "";
         const matchCriteria = {
-            vendorId: vendorID,
+            vendorId: vendorObjectId,
             status: "active",
-            isDeleted: false,
+            isDeleted: { $ne: true },
         };
-        if (stockFilter === "low")
-            matchCriteria.stock = { $gte: 0, $lte: 5 };
-        if (stockFilter === "medium")
-            matchCriteria.stock = { $gte: 6, $lte: 20 };
-        if (stockFilter === "healthy")
-            matchCriteria.stock = { $gt: 20 };
-        const stockData = await Product.aggregate([
+        const totalProducts = await Product.countDocuments(matchCriteria);
+        const searchCriteria = search
+            ? {
+                $or: [
+                    { name: { $regex: escapeRegex(search), $options: "i" } },
+                    { brand: { $regex: escapeRegex(search), $options: "i" } },
+                    { sku: { $regex: escapeRegex(search), $options: "i" } },
+                    { "categoryInfo.name": { $regex: escapeRegex(search), $options: "i" } },
+                ],
+            }
+            : {};
+        const [matchingCount] = await Product.aggregate([
+            { $match: matchCriteria },
+            {
+                $lookup: {
+                    from: category.collection.name,
+                    localField: "categoryID",
+                    foreignField: "_id",
+                    as: "categoryInfo",
+                },
+            },
+            { $match: searchCriteria },
+            { $count: "total" },
+        ]);
+        const totalMatches = matchingCount?.total ?? 0;
+        const totalPages = Math.max(1, Math.ceil(totalMatches / limit));
+        const currentPage = Math.min(page, totalPages);
+        const skip = (currentPage - 1) * limit;
+        const [stockData] = await Product.aggregate([
+            { $match: matchCriteria },
+            {
+                $lookup: {
+                    from: category.collection.name,
+                    localField: "categoryID",
+                    foreignField: "_id",
+                    as: "categoryInfo",
+                },
+            },
             {
                 $facet: {
                     products: [
+                        { $match: searchCriteria },
+                        { $sort: { stock: 1, name: 1 } },
+                        { $skip: skip },
+                        { $limit: limit },
                         {
-                            $match: matchCriteria,
-                        },
-                        {
-                            $sort: { stock: 1 },
-                        },
-                        {
-                            $skip: skip,
-                        },
-                        {
-                            $limit: limit,
-                        },
-                        {
-                            $lookup: {
-                                from: "category",
-                                localField: "categoryID",
-                                foreignField: "_id",
-                                as: "categoryInfo",
+                            $unwind: {
+                                path: "$categoryInfo",
+                                preserveNullAndEmptyArrays: true,
                             },
-                        },
-                        {
-                            $unwind: "$categoryInfo",
                         },
                         {
                             $project: {
@@ -56,19 +80,13 @@ export const getvendorLogisticData = async (req, res, next) => {
                                 stock: 1,
                                 status: 1,
                                 thumbnailImage: { $arrayElemAt: ["$images", 0] },
-                                Category: "$categoryInfo.name",
+                                Category: { $ifNull: ["$categoryInfo.name", "Uncategorized"] },
                                 discount: 1,
                                 rating: 1,
                             },
                         },
                     ],
-                    totalStatuses: [
-                        {
-                            $match: {
-                                vendorId: vendorID,
-                                status: { $ne: ["archieved", "pending_review"] },
-                            },
-                        },
+                    statuses: [
                         {
                             $group: {
                                 _id: null,
@@ -81,7 +99,7 @@ export const getvendorLogisticData = async (req, res, next) => {
                                             {
                                                 $and: [
                                                     { $gt: ["$stock", 5] },
-                                                    { $lte: ["$stock", 20] },
+                                                    { $lte: ["$stock", 15] },
                                                 ],
                                             },
                                             1,
@@ -90,24 +108,30 @@ export const getvendorLogisticData = async (req, res, next) => {
                                     },
                                 },
                                 healthyCount: {
-                                    $sum: { $cond: [{ $gt: ["$stock", 20] }, 1, 0] },
+                                    $sum: { $cond: [{ $gt: ["$stock", 15] }, 1, 0] },
                                 },
                             },
                         },
+                        { $project: { _id: 0 } },
                     ],
                 },
             },
         ]);
-        const stockSummary = stockData[0] ?? { products: [], totalStatuses: [] };
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
-            products: stockSummary.products,
-            statuses: stockSummary.totalStatuses,
-            currentPage: page,
+            products: stockData?.products ?? [],
+            statuses: stockData?.statuses[0] ?? {
+                urgentCount: 0,
+                mediumCount: 0,
+                healthyCount: 0,
+            },
+            totalProducts,
+            totalMatches,
+            currentPage,
             totalPages,
         });
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };

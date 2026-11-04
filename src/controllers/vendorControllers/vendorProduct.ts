@@ -14,6 +14,38 @@ import {
 
 const MAX_PRODUCT_IMAGES = 5;
 
+const resolveImageOrder = (
+  rawOrder: unknown,
+  expectedTokens: string[],
+): string[] | null => {
+  if (rawOrder === undefined) return expectedTokens;
+  if (typeof rawOrder !== "string") return null;
+
+  let parsedOrder: unknown;
+  try {
+    parsedOrder = JSON.parse(rawOrder);
+  } catch {
+    return null;
+  }
+  if (
+    !Array.isArray(parsedOrder) ||
+    !parsedOrder.every((token): token is string => typeof token === "string")
+  ) {
+    return null;
+  }
+
+  const tokens = new Set(parsedOrder);
+  if (
+    parsedOrder.length !== expectedTokens.length ||
+    tokens.size !== parsedOrder.length ||
+    expectedTokens.some((token) => !tokens.has(token))
+  ) {
+    return null;
+  }
+
+  return parsedOrder;
+};
+
 const refreshProductCount = async (categoryId: string) => {
   const ProductCount = await Product.countDocuments({
     categoryID: categoryId,
@@ -111,6 +143,14 @@ export const CreateVendorProduct = async (
     }
 
     const incomingImages = Array.isArray(req.files) ? req.files : [];
+    const uploadTokens = incomingImages.map((_, index) => `new:${index}`);
+    const imageOrder = resolveImageOrder(req.body.imageOrder, uploadTokens);
+    if (!imageOrder) {
+      return res.status(400).json({
+        success: false,
+        message: "The image order is invalid.",
+      });
+    }
 
     if (!(await validateLevelThreeCategory(validatedData.categoryID, res)))
       return;
@@ -118,8 +158,14 @@ export const CreateVendorProduct = async (
     let imagesData = [];
 
     if (incomingImages.length > 0) {
+      const orderedIncomingImages = imageOrder.map((token) => {
+        const index = Number(token.slice("new:".length));
+        const file = incomingImages[index];
+        if (!file) throw new Error("Image order refers to an unavailable upload.");
+        return file;
+      });
       const result = (await Promise.all(
-        incomingImages.map((file) => uploadToCloudinary(file.buffer)),
+        orderedIncomingImages.map((file) => uploadToCloudinary(file.buffer)),
       )) as Array<{ secure_url: string; public_id: string }>;
 
       for (const data of result) {
@@ -220,6 +266,20 @@ export const UpdateVendorProduct = async (
         message: `A product can have a maximum of ${MAX_PRODUCT_IMAGES} images.`,
       });
     }
+    const expectedImageTokens = [
+      ...clientImages.map((image) => `existing:${image._id}`),
+      ...newImages.map((_, index) => `new:${index}`),
+    ];
+    const imageOrder = resolveImageOrder(
+      req.body.imageOrder,
+      expectedImageTokens,
+    );
+    if (!imageOrder) {
+      return res.status(400).json({
+        success: false,
+        message: "The image order is invalid.",
+      });
+    }
 
     const imagesToDelete = product.images.filter(
       (mongoImages) =>
@@ -241,7 +301,21 @@ export const UpdateVendorProduct = async (
       }
     }
 
-    const finalTotalImages = [...newUploadedImages, ...clientImages];
+    const imagesByToken = new Map<
+      string,
+      { cloudinaryId: string; publicId: string }
+    >();
+    clientImages.forEach((image) => {
+      imagesByToken.set(`existing:${image._id}`, image);
+    });
+    newUploadedImages.forEach((image, index) => {
+      imagesByToken.set(`new:${index}`, image);
+    });
+    const finalTotalImages = imageOrder.map((token) => {
+      const image = imagesByToken.get(token);
+      if (!image) throw new Error("Image order refers to an unavailable image.");
+      return image;
+    });
     const updatedProduct = await Product.findOneAndUpdate(
       { _id: productID, vendorId },
       {
