@@ -28,13 +28,6 @@ export const getvendorLogisticData = async (
 ) => {
   try {
     const vendorID = (req as AuthenticatedVendorRequest).user?.vendorID;
-    if (!vendorID || !mongoose.isValidObjectId(vendorID)) {
-      return res.status(401).json({
-        success: false,
-        message: "A valid vendor account is required.",
-      });
-    }
-
     const vendorObjectId = new mongoose.Types.ObjectId(vendorID);
     const limit = getPositiveInteger(req.query.limit, 10, 50);
     const requestedPage = getPositiveInteger(

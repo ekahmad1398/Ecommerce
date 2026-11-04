@@ -18,6 +18,7 @@ import {
 } from "../controllers/vendorControllers/vendorProduct.js";
 import { getVendorProducts } from "../controllers/vendorControllers/getVendorProducts.js";
 import { getVendorProductCategories } from "../controllers/vendorControllers/getVendorProductCategories.js";
+import { changeVendorPassword } from "../controllers/vendorControllers/changeVendorPassword.js";
 import authenticate from "../middleware/auth.js";
 import authorize from "../middleware/role.js";
 import upload from "../middleware/upload.js";
@@ -38,6 +39,7 @@ router.get("/financeData", getVendorFinancialStatus);
 router.get("/LogisticData", getvendorLogisticData);
 router.get("/getProfile", getVendorProfile);
 router.put("/updateProfile", upload.single("companyimage"), updateVendorProfile);
+router.put("/changePassword", changeVendorPassword);
 router.get("/vendorOrder", getVendorsOrders);
 router.put("/UpdateOrderStatus", UpdateSubOrderStatus);
 

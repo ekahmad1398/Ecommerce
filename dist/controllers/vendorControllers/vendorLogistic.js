@@ -11,12 +11,6 @@ const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 export const getvendorLogisticData = async (req, res, next) => {
     try {
         const vendorID = req.user?.vendorID;
-        if (!vendorID || !mongoose.isValidObjectId(vendorID)) {
-            return res.status(401).json({
-                success: false,
-                message: "A valid vendor account is required.",
-            });
-        }
         const vendorObjectId = new mongoose.Types.ObjectId(vendorID);
         const limit = getPositiveInteger(req.query.limit, 10, 50);
         const requestedPage = getPositiveInteger(req.query.page, 1, Number.MAX_SAFE_INTEGER);
