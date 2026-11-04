@@ -1,5 +1,5 @@
 import express from "express";
-import { getVendorProfile, registerVendor, } from "../controllers/vendorControllers/signup_V.js";
+import { getVendorProfile, registerVendor, updateVendorProfile, } from "../controllers/vendorControllers/signup_V.js";
 import { getVendorFinancialStatus } from "../controllers/vendorControllers/vendorFinance.js";
 import { getvendorLogisticData } from "../controllers/vendorControllers/vendorLogistic.js";
 import { getVendorsOrders, UpdateSubOrderStatus, } from "../controllers/vendorControllers/vendorOrder.js";
@@ -22,6 +22,7 @@ router.get("/readProduct/:id", readProduct);
 router.get("/financeData", getVendorFinancialStatus);
 router.get("/LogisticData", getvendorLogisticData);
 router.get("/getProfile", getVendorProfile);
+router.put("/updateProfile", upload.single("companyimage"), updateVendorProfile);
 router.get("/vendorOrder", getVendorsOrders);
 router.put("/UpdateOrderStatus", UpdateSubOrderStatus);
 export default router;

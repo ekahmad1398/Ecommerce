@@ -1,5 +1,23 @@
-import { uploadToCloudinary } from "../../middleware/upload.js";
+import { deleteFromCloudinary, uploadToCloudinary, } from "../../middleware/upload.js";
 import Vendor from "../../models/vendor.js";
+import z from "zod";
+const updateVendorProfileSchema = z.object({
+    name: z.string().trim().min(2).max(120),
+    lastName: z.string().trim().min(2).max(120),
+    country: z.string().trim().min(2).max(120),
+    mobilenumber: z
+        .string()
+        .trim()
+        .regex(/^\+?[1-9]\d{7,14}$/, "Enter a valid phone number."),
+    companyName: z.string().trim().min(2).max(120),
+    storeSlug: z
+        .string()
+        .trim()
+        .min(2)
+        .max(120)
+        .regex(/^[a-zA-Z0-9-]+$/, "Store URL can contain letters, numbers, and hyphens."),
+    storeDescription: z.string().trim().min(2).max(2000),
+});
 export const registerVendor = async (req, res, next) => {
     try {
         const userId = req.user.id;
@@ -79,5 +97,83 @@ export const getVendorProfile = async (req, res, next) => {
     }
     catch (error) {
         next(error);
+    }
+};
+export const updateVendorProfile = async (req, res, next) => {
+    let replacementImageId;
+    try {
+        const vendorId = req.user?.vendorID;
+        if (!vendorId) {
+            return res.status(401).json({
+                success: false,
+                message: "A vendor account is required.",
+            });
+        }
+        const parsedBody = updateVendorProfileSchema.safeParse(req.body);
+        if (!parsedBody.success) {
+            return res.status(400).json({
+                success: false,
+                message: "Please check the profile fields and try again.",
+                errors: parsedBody.error.issues,
+            });
+        }
+        const vendor = await Vendor.findById(vendorId);
+        if (!vendor) {
+            return res.status(404).json({
+                success: false,
+                message: "Vendor profile not found.",
+            });
+        }
+        const imageFile = req.file;
+        let replacementImage;
+        if (imageFile) {
+            const uploadResult = await uploadToCloudinary(imageFile.buffer);
+            if (!uploadResult) {
+                return res.status(500).json({
+                    success: false,
+                    message: "Store image upload failed.",
+                });
+            }
+            replacementImageId = uploadResult.public_id;
+            replacementImage = {
+                cloudinaryId: uploadResult.public_id,
+                publicId: uploadResult.secure_url,
+            };
+        }
+        const updatedVendor = await Vendor.findByIdAndUpdate(vendorId, {
+            ...parsedBody.data,
+            ...(replacementImage ? { Companyimage: replacementImage } : {}),
+        }, { returnDocument: "after", runValidators: true });
+        if (!updatedVendor) {
+            if (replacementImageId)
+                await deleteFromCloudinary(replacementImageId);
+            return res.status(404).json({
+                success: false,
+                message: "Vendor profile not found.",
+            });
+        }
+        if (replacementImageId) {
+            await deleteFromCloudinary(vendor.Companyimage?.cloudinaryId);
+            replacementImageId = undefined;
+        }
+        return res.status(200).json({
+            success: true,
+            message: "Vendor profile updated successfully.",
+            vendor: updatedVendor,
+        });
+    }
+    catch (error) {
+        if (replacementImageId)
+            await deleteFromCloudinary(replacementImageId);
+        if (typeof error === "object" &&
+            error !== null &&
+            "code" in error &&
+            error.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                message: "That store URL is already in use.",
+            });
+        }
+        return next(error);
     }
 };
