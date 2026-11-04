@@ -28,9 +28,33 @@ export const getvendorLogisticData = async (
 ) => {
   try {
     const vendorID = (req as AuthenticatedVendorRequest).user?.vendorID;
+    if (!vendorID || !mongoose.isValidObjectId(vendorID)) {
+      return res.status(401).json({
+        success: false,
+        message: "A valid vendor account is required.",
+      });
+    }
+
     const vendorObjectId = new mongoose.Types.ObjectId(vendorID);
     const limit = getPositiveInteger(req.query.limit, 10, 50);
-    const page = getPositiveInteger(req.query.page, 1, Number.MAX_SAFE_INTEGER);
+    const requestedPage = getPositiveInteger(
+      req.query.page,
+      1,
+      Number.MAX_SAFE_INTEGER,
+    );
+    const requestedSkip =
+      req.query.skip === undefined ? undefined : Number(req.query.skip);
+    if (
+      requestedSkip !== undefined &&
+      (!Number.isSafeInteger(requestedSkip) || requestedSkip < 0)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Skip must be a non-negative safe integer.",
+      });
+    }
+    const requestedOffset =
+      requestedSkip ?? (requestedPage - 1) * limit;
     const search =
       typeof req.query.search === "string"
         ? req.query.search.trim().slice(0, 100)
@@ -67,8 +91,8 @@ export const getvendorLogisticData = async (
     ]);
     const totalMatches = matchingCount?.total ?? 0;
     const totalPages = Math.max(1, Math.ceil(totalMatches / limit));
-    const currentPage = Math.min(page, totalPages);
-    const skip = (currentPage - 1) * limit;
+    const skipped = Math.min(requestedOffset, (totalPages - 1) * limit);
+    const currentPage = Math.floor(skipped / limit) + 1;
 
     const [stockData] = await Product.aggregate([
       { $match: matchCriteria },
@@ -85,7 +109,7 @@ export const getvendorLogisticData = async (
           products: [
             { $match: searchCriteria },
             { $sort: { stock: 1, name: 1 } },
-            { $skip: skip },
+            { $skip: skipped },
             { $limit: limit },
             {
               $unwind: {
@@ -150,6 +174,8 @@ export const getvendorLogisticData = async (
       totalMatches,
       currentPage,
       totalPages,
+      skipped,
+      limit,
     });
   } catch (error) {
     return next(error);
