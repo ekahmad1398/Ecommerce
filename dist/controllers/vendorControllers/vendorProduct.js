@@ -150,8 +150,11 @@ const validateProductAttributes = async (categoryId, attributes, res) => {
             (definition.type === "number" && typeof attribute.value === "number") ||
             (definition.type === "boolean" && typeof attribute.value === "boolean") ||
             (definition.type === "select" &&
-                typeof attribute.value === "string" &&
-                definition.options?.includes(attribute.value));
+                ((typeof attribute.value === "string" &&
+                    definition.options?.includes(attribute.value)) ||
+                    (Array.isArray(attribute.value) &&
+                        attribute.value.length > 0 &&
+                        attribute.value.every((option) => definition.options?.includes(option)))));
         if (!validType) {
             res.status(400).json({
                 success: false,

@@ -1,7 +1,12 @@
 import z from "zod";
 const attributeItemSchema = z.object({
     key: z.string().trim().min(1, "An attribute key cannot be empty.").toLowerCase(),
-    value: z.union([z.string().trim().min(1), z.number().finite(), z.boolean()]),
+    value: z.union([
+        z.string().trim().min(1),
+        z.number().finite(),
+        z.boolean(),
+        z.array(z.string().trim().min(1)).min(1).max(100),
+    ]),
 });
 const parseJsonInput = (value) => {
     if (typeof value !== "string")

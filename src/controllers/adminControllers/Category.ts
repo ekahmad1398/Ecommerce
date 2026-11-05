@@ -44,10 +44,12 @@ export const createCategory = async (
       });
     }
 
-    const existingCategory = await category.findOne({
-      name,
-      parentCategory: parentCategory || null,
-    });
+    const existingCategory = await category
+      .findOne({
+        name,
+        parentCategory: parentCategory || null,
+      })
+      .lean();
     if (existingCategory) {
       return res
         .status(400)

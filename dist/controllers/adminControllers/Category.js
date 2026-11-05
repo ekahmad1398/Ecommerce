@@ -28,10 +28,12 @@ export const createCategory = async (req, res, next) => {
                 message: "Invalid parent category ID.",
             });
         }
-        const existingCategory = await category.findOne({
+        const existingCategory = await category
+            .findOne({
             name,
             parentCategory: parentCategory || null,
-        });
+        })
+            .lean();
         if (existingCategory) {
             return res
                 .status(400)
