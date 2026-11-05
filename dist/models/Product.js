@@ -45,8 +45,8 @@ const productSchema = new mongoose.Schema({
     },
     attributes: [
         {
-            key: { type: String },
-            value: { type: String },
+            key: { type: String, required: true, trim: true, lowercase: true },
+            value: { type: mongoose.Schema.Types.Mixed, required: true },
             _id: { type: mongoose.Schema.ObjectId, auto: true },
         },
     ],

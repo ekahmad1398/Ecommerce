@@ -14,6 +14,7 @@ import {
   CreateVendorProduct,
   UpdateVendorProduct,
   deleteVendorProduct,
+  getVendorProductCategoryAttributes,
   readProduct,
 } from "../controllers/vendorControllers/vendorProduct.js";
 import { getVendorProducts } from "../controllers/vendorControllers/getVendorProducts.js";
@@ -33,6 +34,7 @@ router.post("/CreateProduct", upload.array("imagestoUpload", 5), CreateVendorPro
 router.post("/UpdateProduct/:id", upload.array("imagestoUpload", 5), UpdateVendorProduct);
 router.delete("/deleteProduct/:id", deleteVendorProduct);
 router.get("/productCategories", getVendorProductCategories);
+router.get("/productCategories/:id/attributes", getVendorProductCategoryAttributes);
 router.get("/getProducts", getVendorProducts);
 router.get("/readProduct/:id", readProduct);
 router.get("/financeData", getVendorFinancialStatus);

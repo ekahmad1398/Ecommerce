@@ -1,14 +1,61 @@
 import z from "zod";
 const attributeItemSchema = z.object({
-    key: z
-        .string()
-        .trim()
-        .min(1, "if you add an attribute, the key cannot be empty."),
-    value: z
-        .string()
-        .trim()
-        .min(1, "if you add a vlue, the key cannot be empty."),
+    key: z.string().trim().min(1, "An attribute key cannot be empty.").toLowerCase(),
+    value: z.union([z.string().trim().min(1), z.number().finite(), z.boolean()]),
 });
+const parseJsonInput = (value) => {
+    if (typeof value !== "string")
+        return value;
+    try {
+        return JSON.parse(value);
+    }
+    catch {
+        return value;
+    }
+};
+const categoryAttributeDefinitionSchema = z.object({
+    key: z.string().trim().min(1).max(64).regex(/^[a-zA-Z][a-zA-Z0-9_]*$/).toLowerCase(),
+    label: z.string().trim().min(1).max(100),
+    type: z.enum(["text", "number", "boolean", "select"]),
+    unit: z.string().trim().max(24).optional(),
+    options: z.array(z.string().trim().min(1).max(100)).max(100).optional(),
+    required: z.boolean().default(false),
+    filterable: z.boolean().default(true),
+}).superRefine((definition, ctx) => {
+    if (definition.type === "select" && !definition.options?.length) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["options"],
+            message: "Select attributes must define at least one option.",
+        });
+    }
+    if (definition.type !== "select" && definition.options?.length) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["options"],
+            message: "Only select attributes can define options.",
+        });
+    }
+});
+const uniqueAttributeKeys = (definitions, ctx) => {
+    if (!definitions)
+        return;
+    const keys = new Set();
+    for (const [index, definition] of definitions.entries()) {
+        if (keys.has(definition.key)) {
+            ctx.addIssue({
+                code: "custom",
+                path: [index, "key"],
+                message: "Attribute keys must be unique within a category.",
+            });
+        }
+        keys.add(definition.key);
+    }
+};
+const productAttributesSchema = z.preprocess(parseJsonInput, z.array(attributeItemSchema).superRefine(uniqueAttributeKeys).nullable().optional());
+const categoryAttributesSchema = z.preprocess(parseJsonInput, z.array(categoryAttributeDefinitionSchema)
+    .max(100)
+    .superRefine(uniqueAttributeKeys));
 const imagearray = z.object({
     cloudinaryId: z.string().trim().min(1, "A Cloudinary image ID is required."),
     publicId: z.string().url("A valid image URL is required."),
@@ -49,24 +96,7 @@ export const productBodySchema = z.object({
         .pipe(z.number().nonnegative("discount must be a postive number."))
         .nullable()
         .optional(),
-    attributes: z
-        .string()
-        .optional()
-        .transform((str, ctx) => {
-        if (!str || str.trim() === "")
-            return null;
-        try {
-            return JSON.parse(str);
-        }
-        catch (error) {
-            ctx.addIssue({
-                code: "custom",
-                message: "invalid json array structure",
-            });
-            return z.NEVER;
-        }
-    })
-        .pipe(z.array(attributeItemSchema).nullable().optional()),
+    attributes: productAttributesSchema,
 });
 export const updateproductBodySchema = z.object({
     name: z
@@ -115,24 +145,7 @@ export const updateproductBodySchema = z.object({
         .pipe(z.number().nonnegative("discount must be a postive number."))
         .nullable()
         .optional(),
-    attributes: z
-        .string()
-        .optional()
-        .transform((str, ctx) => {
-        if (!str || str.trim() === "")
-            return null;
-        try {
-            return JSON.parse(str);
-        }
-        catch (error) {
-            ctx.addIssue({
-                code: "custom",
-                message: "invalid json array structure",
-            });
-            return z.NEVER;
-        }
-    })
-        .pipe(z.array(attributeItemSchema).nullable().optional()),
+    attributes: productAttributesSchema,
     images: z
         .string()
         .optional()
@@ -155,8 +168,14 @@ export const updateproductBodySchema = z.object({
 export const updateCategoryBodySchema = z.object({
     name: z.string().trim().min(2, "name must be at least 2 characters").optional(),
     parentCategory: z.string().trim().optional(),
+    attributes: categoryAttributesSchema.optional(),
     removeImage: z
         .union([z.boolean(), z.literal("true"), z.literal("false")])
         .transform((value) => value === true || value === "true")
         .optional(),
+});
+export const createCategoryBodySchema = z.object({
+    name: z.string().trim().min(2, "Category name must be at least 2 characters."),
+    parentCategory: z.string().trim().optional(),
+    attributes: categoryAttributesSchema.optional(),
 });

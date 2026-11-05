@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import category from "../../models/category.js";
 import { deleteFromCloudinary, uploadToCloudinary, } from "../../middleware/upload.js";
-import { updateCategoryBodySchema } from "../../utils/zodValidators.js";
+import { createCategoryBodySchema, updateCategoryBodySchema, } from "../../utils/zodValidators.js";
 import Product from "../../models/Product.js";
 import { optimizeCategory } from "../../utils/optimizer.js";
 const refreshChildCount = async (parentId) => {
@@ -12,12 +12,20 @@ const refreshChildCount = async (parentId) => {
 };
 export const createCategory = async (req, res, next) => {
     try {
-        const { name, parentCategory } = req.body;
-        const imageFile = req.file;
-        if (!name || typeof name !== "string") {
+        const parsedBody = createCategoryBodySchema.safeParse(req.body);
+        if (!parsedBody.success) {
             return res.status(400).json({
                 success: false,
-                message: "Category name is required.",
+                message: "Invalid category data.",
+                errors: parsedBody.error.issues,
+            });
+        }
+        const { name, parentCategory, attributes } = parsedBody.data;
+        const imageFile = req.file;
+        if (parentCategory && !mongoose.isValidObjectId(parentCategory)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid parent category ID.",
             });
         }
         const existingCategory = await category.findOne({
@@ -37,7 +45,7 @@ export const createCategory = async (req, res, next) => {
                     .json({ success: false, message: "parent category not found." });
             }
         }
-        let data = { name, parentCategory: parentCategory || null };
+        let data = { name, parentCategory: parentCategory || null, attributes };
         if (imageFile) {
             const uploading = await uploadToCloudinary(imageFile.buffer);
             if (!uploading) {
@@ -107,6 +115,9 @@ export const updateCategory = async (req, res, next) => {
         let newParentId = oldParentId;
         if (validatedData.name !== undefined) {
             updates.name = validatedData.name;
+        }
+        if (validatedData.attributes !== undefined) {
+            updates.attributes = validatedData.attributes;
         }
         const requestedParent = validatedData.parentCategory;
         if (requestedParent !== undefined) {

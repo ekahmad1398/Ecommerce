@@ -113,7 +113,7 @@ export const GetCategories = async (req, res, next) => {
             .find({
             parentCategory: { $in: parentCategories.map(({ _id }) => _id) },
         })
-            .select("name Image parentCategory ProductCount")
+            .select("name Image parentCategory ProductCount attributes")
             .sort({ createdAt: -1 })
             .lean();
         const childrenByParent = new Map();
@@ -123,10 +123,15 @@ export const GetCategories = async (req, res, next) => {
             siblings.push(child);
             childrenByParent.set(parentId, siblings);
         }
-        const formatedData = parentCategories.map(({ Image, ...parent }) => ({
+        const formatedData = parentCategories.map(({ Image, attributes, ...parent }) => ({
             ...parent,
             image: Image,
-            children: (childrenByParent.get(String(parent._id)) ?? []).map(({ Image, ...child }) => ({ ...child, image: Image })),
+            attributes,
+            children: (childrenByParent.get(String(parent._id)) ?? []).map(({ Image, attributes, ...child }) => ({
+                ...child,
+                image: Image,
+                attributes,
+            })),
         }));
         res.status(200).json({
             success: true,

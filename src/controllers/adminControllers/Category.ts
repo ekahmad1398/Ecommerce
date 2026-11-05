@@ -6,7 +6,10 @@ import {
   deleteFromCloudinary,
   uploadToCloudinary,
 } from "../../middleware/upload.js";
-import { updateCategoryBodySchema } from "../../utils/zodValidators.js";
+import {
+  createCategoryBodySchema,
+  updateCategoryBodySchema,
+} from "../../utils/zodValidators.js";
 import Product from "../../models/Product.js";
 import { optimizeCategory } from "../../utils/optimizer.js";
 
@@ -23,13 +26,21 @@ export const createCategory = async (
   next: NextFunction,
 ) => {
   try {
-    const { name, parentCategory } = req.body;
-    const imageFile = req.file;
-
-    if (!name || typeof name !== "string") {
+    const parsedBody = createCategoryBodySchema.safeParse(req.body);
+    if (!parsedBody.success) {
       return res.status(400).json({
         success: false,
-        message: "Category name is required.",
+        message: "Invalid category data.",
+        errors: parsedBody.error.issues,
+      });
+    }
+    const { name, parentCategory, attributes } = parsedBody.data;
+    const imageFile = req.file;
+
+    if (parentCategory && !mongoose.isValidObjectId(parentCategory)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid parent category ID.",
       });
     }
 
@@ -55,8 +66,9 @@ export const createCategory = async (
     let data: {
       name: string;
       parentCategory: string | null;
+      attributes?: typeof attributes;
       Image?: { cloudinaryId: string; publicId: string };
-    } = { name, parentCategory: parentCategory || null };
+    } = { name, parentCategory: parentCategory || null, attributes };
     if (imageFile) {
       const uploading = await uploadToCloudinary(imageFile.buffer);
       if (!uploading) {
@@ -131,6 +143,7 @@ export const updateCategory = async (
     const updates: {
       name?: string;
       parentCategory?: string | null;
+      attributes?: typeof validatedData.attributes;
       Image?: { cloudinaryId: string; publicId: string };
     } = {};
     const oldParentId = categoryData.parentCategory?.toString() ?? null;
@@ -138,6 +151,9 @@ export const updateCategory = async (
 
     if (validatedData.name !== undefined) {
       updates.name = validatedData.name;
+    }
+    if (validatedData.attributes !== undefined) {
+      updates.attributes = validatedData.attributes;
     }
 
     const requestedParent = validatedData.parentCategory;

@@ -121,6 +121,119 @@ const validateLevelThreeCategory = async (
   return false;
 };
 
+export const getVendorProductCategoryAttributes = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = typeof req.params.id === "string" ? req.params.id : "";
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid category ID is required.",
+      });
+    }
+
+    const selectedCategory = await categorySchema
+      .findById(id)
+      .select("attributes")
+      .lean();
+    if (!selectedCategory) {
+      return res.status(404).json({
+        success: false,
+        message: "Category not found.",
+      });
+    }
+
+    if (!(await isLevelThreeCategory(id))) {
+      return res.status(400).json({
+        success: false,
+        message: "Select a level-3 category. Other category levels are not allowed.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      categoryId: id,
+      attributes: selectedCategory.attributes ?? [],
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+type ProductAttributeValue = {
+  key: string;
+  value: string | number | boolean;
+};
+
+type CategoryAttributeDefinition = {
+  key: string;
+  type: "text" | "number" | "boolean" | "select";
+  options?: string[];
+  required?: boolean;
+};
+
+const validateProductAttributes = async (
+  categoryId: string,
+  attributes: ProductAttributeValue[],
+  res: Response,
+): Promise<ProductAttributeValue[] | null> => {
+  const selectedCategory = await categorySchema
+    .findById(categoryId)
+    .select("attributes")
+    .lean();
+  if (!selectedCategory) {
+    res.status(404).json({ success: false, message: "Category not found." });
+    return null;
+  }
+
+  const definitions = (selectedCategory.attributes ?? []) as CategoryAttributeDefinition[];
+  const definitionsByKey = new Map(definitions.map((definition) => [definition.key, definition]));
+  const submittedKeys = new Set<string>();
+
+  for (const attribute of attributes) {
+    const definition = definitionsByKey.get(attribute.key);
+    if (!definition || submittedKeys.has(attribute.key)) {
+      res.status(400).json({
+        success: false,
+        message: `Attribute '${attribute.key}' is not allowed or was submitted more than once.`,
+      });
+      return null;
+    }
+
+    const validType =
+      (definition.type === "text" && typeof attribute.value === "string") ||
+      (definition.type === "number" && typeof attribute.value === "number") ||
+      (definition.type === "boolean" && typeof attribute.value === "boolean") ||
+      (definition.type === "select" &&
+        typeof attribute.value === "string" &&
+        definition.options?.includes(attribute.value));
+    if (!validType) {
+      res.status(400).json({
+        success: false,
+        message: `Attribute '${attribute.key}' has an invalid value for its category definition.`,
+      });
+      return null;
+    }
+    submittedKeys.add(attribute.key);
+  }
+
+  const missingRequired = definitions.find(
+    (definition) => definition.required && !submittedKeys.has(definition.key),
+  );
+  if (missingRequired) {
+    res.status(400).json({
+      success: false,
+      message: `Attribute '${missingRequired.key}' is required for this category.`,
+    });
+    return null;
+  }
+
+  return attributes;
+};
+
 export const CreateVendorProduct = async (
   req: Request,
   res: Response,
@@ -155,6 +268,13 @@ export const CreateVendorProduct = async (
     if (!(await validateLevelThreeCategory(validatedData.categoryID, res)))
       return;
 
+    const productAttributes = await validateProductAttributes(
+      validatedData.categoryID,
+      validatedData.attributes ?? [],
+      res,
+    );
+    if (!productAttributes) return;
+
     let imagesData = [];
 
     if (incomingImages.length > 0) {
@@ -187,23 +307,6 @@ export const CreateVendorProduct = async (
       color: validatedData.colors[0],
     });
 
-    let attribueteArray = [];
-    if (validatedData.attributes) {
-      try {
-        for (const attribute of validatedData.attributes) {
-          attribueteArray.push({
-            key: attribute.key,
-            value: attribute.value,
-          });
-        }
-      } catch (error) {
-        res.status(400).json({
-          success: false,
-          message: "The attribute array must be a valid JSON array string.",
-        });
-      }
-    }
-
     const addedProduct = await Product.create({
       name: validatedData.name,
       description: validatedData.description,
@@ -216,7 +319,7 @@ export const CreateVendorProduct = async (
       sku: createdSKU,
       vendorId: vendorID,
       images: imagesData,
-      attributes: attribueteArray,
+      attributes: productAttributes,
       status: normalizeProductStatus(validatedData.status),
     });
 
@@ -258,6 +361,17 @@ export const UpdateVendorProduct = async (
 
     const categoryId = validatedData.categoryID ?? String(product.categoryID);
     if (!(await validateLevelThreeCategory(categoryId, res))) return;
+
+    const submittedAttributes =
+      validatedData.attributes === undefined
+        ? product.attributes.map(({ key, value }) => ({ key, value }))
+        : validatedData.attributes ?? [];
+    const productAttributes = await validateProductAttributes(
+      categoryId,
+      submittedAttributes,
+      res,
+    );
+    if (!productAttributes) return;
 
     const clientImages = validatedData.images ?? [];
     if (clientImages.length + newImages.length > MAX_PRODUCT_IMAGES) {
@@ -329,6 +443,7 @@ export const UpdateVendorProduct = async (
         discount: validatedData.discount,
         status: normalizeProductStatus(validatedData.status),
         images: finalTotalImages,
+        attributes: productAttributes,
       },
       { returnDocument: "after", runValidators: true },
     );
