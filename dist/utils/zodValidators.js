@@ -170,10 +170,12 @@ export const updateproductBodySchema = z.object({
     })
         .pipe(z.array(imagearray).nullable().optional()),
 });
+const brandsListSchema = z.preprocess(parseJsonInput, z.array(z.string().trim().min(1).max(100)).max(100));
 export const updateCategoryBodySchema = z.object({
     name: z.string().trim().min(2, "name must be at least 2 characters").optional(),
     parentCategory: z.string().trim().optional(),
     attributes: categoryAttributesSchema.optional(),
+    brands: brandsListSchema.optional(),
     removeImage: z
         .union([z.boolean(), z.literal("true"), z.literal("false")])
         .transform((value) => value === true || value === "true")
@@ -183,4 +185,5 @@ export const createCategoryBodySchema = z.object({
     name: z.string().trim().min(2, "Category name must be at least 2 characters."),
     parentCategory: z.string().trim().optional(),
     attributes: categoryAttributesSchema.optional(),
+    brands: brandsListSchema.optional(),
 });

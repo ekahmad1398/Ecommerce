@@ -163,6 +163,36 @@ export const getVendorProductCategoryAttributes = async (
   }
 };
 
+const RESERVED_BRAND_VALUES = new Set(["General", "GEN"]);
+
+const validateBrandForCategory = async (
+  categoryId: string,
+  brand: string,
+  isCustomBrand: boolean,
+  res: Response,
+) => {
+  const selectedCategory = await categorySchema
+    .findById(categoryId)
+    .select("brands")
+    .lean();
+  if (!selectedCategory) {
+    res.status(404).json({ success: false, message: "Category not found." });
+    return false;
+  }
+  const allowedBrands = new Set([
+    ...(selectedCategory.brands ?? []),
+    ...RESERVED_BRAND_VALUES,
+  ]);
+
+  if (isCustomBrand || allowedBrands.has(brand)) return true;
+
+  res.status(400).json({
+    success: false,
+    message: `Brand '${brand}' is not allowed for this category.`,
+  });
+  return false;
+};
+
 type ProductAttributeValue = {
   key: string;
   value: string | number | boolean | string[];
@@ -273,6 +303,17 @@ export const CreateVendorProduct = async (
     if (!(await validateLevelThreeCategory(validatedData.categoryID, res)))
       return;
 
+    const brandIsCustom = req.body.brandIsCustom === "true";
+    if (
+      !(await validateBrandForCategory(
+        validatedData.categoryID,
+        validatedData.brand,
+        brandIsCustom,
+        res,
+      ))
+    )
+      return;
+
     const productAttributes = await validateProductAttributes(
       validatedData.categoryID,
       validatedData.attributes ?? [],
@@ -366,6 +407,19 @@ export const UpdateVendorProduct = async (
 
     const categoryId = validatedData.categoryID ?? String(product.categoryID);
     if (!(await validateLevelThreeCategory(categoryId, res))) return;
+
+    if (validatedData.brand !== undefined) {
+      const brandIsCustom = req.body.brandIsCustom === "true";
+      if (
+        !(await validateBrandForCategory(
+          categoryId,
+          validatedData.brand,
+          brandIsCustom,
+          res,
+        ))
+      )
+        return;
+    }
 
     const submittedAttributes =
       validatedData.attributes === undefined

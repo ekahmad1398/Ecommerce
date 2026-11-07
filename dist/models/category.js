@@ -28,6 +28,7 @@ const data = new mongoose.Schema({
         default: null,
     },
     Image: { type: imageSchema, default: undefined },
+    brands: { type: [String], trim: true, default: [] },
     ChildCount: { type: Number, default: 0 },
     attributes: { type: [attributeDefinitionSchema], default: [] },
 }, { timestamps: true });

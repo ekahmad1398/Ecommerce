@@ -125,6 +125,28 @@ export const getVendorProductCategoryAttributes = async (req, res, next) => {
         return next(error);
     }
 };
+const RESERVED_BRAND_VALUES = new Set(["General", "GEN"]);
+const validateBrandForCategory = async (categoryId, brand, isCustomBrand, res) => {
+    const selectedCategory = await categorySchema
+        .findById(categoryId)
+        .select("brands")
+        .lean();
+    if (!selectedCategory) {
+        res.status(404).json({ success: false, message: "Category not found." });
+        return false;
+    }
+    const allowedBrands = new Set([
+        ...(selectedCategory.brands ?? []),
+        ...RESERVED_BRAND_VALUES,
+    ]);
+    if (isCustomBrand || allowedBrands.has(brand))
+        return true;
+    res.status(400).json({
+        success: false,
+        message: `Brand '${brand}' is not allowed for this category.`,
+    });
+    return false;
+};
 const validateProductAttributes = async (categoryId, attributes, res) => {
     const selectedCategory = await categorySchema
         .findById(categoryId)
@@ -198,6 +220,9 @@ export const CreateVendorProduct = async (req, res, next) => {
             });
         }
         if (!(await validateLevelThreeCategory(validatedData.categoryID, res)))
+            return;
+        const brandIsCustom = req.body.brandIsCustom === "true";
+        if (!(await validateBrandForCategory(validatedData.categoryID, validatedData.brand, brandIsCustom, res)))
             return;
         const productAttributes = await validateProductAttributes(validatedData.categoryID, validatedData.attributes ?? [], res);
         if (!productAttributes)
@@ -276,6 +301,11 @@ export const UpdateVendorProduct = async (req, res, next) => {
         const categoryId = validatedData.categoryID ?? String(product.categoryID);
         if (!(await validateLevelThreeCategory(categoryId, res)))
             return;
+        if (validatedData.brand !== undefined) {
+            const brandIsCustom = req.body.brandIsCustom === "true";
+            if (!(await validateBrandForCategory(categoryId, validatedData.brand, brandIsCustom, res)))
+                return;
+        }
         const submittedAttributes = validatedData.attributes === undefined
             ? product.attributes.map(({ key, value }) => ({ key, value }))
             : validatedData.attributes ?? [];

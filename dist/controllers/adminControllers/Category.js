@@ -20,7 +20,7 @@ export const createCategory = async (req, res, next) => {
                 errors: parsedBody.error.issues,
             });
         }
-        const { name, parentCategory, attributes } = parsedBody.data;
+        const { name, parentCategory, attributes, brands } = parsedBody.data;
         const imageFile = req.file;
         if (parentCategory && !mongoose.isValidObjectId(parentCategory)) {
             return res.status(400).json({
@@ -47,7 +47,7 @@ export const createCategory = async (req, res, next) => {
                     .json({ success: false, message: "parent category not found." });
             }
         }
-        let data = { name, parentCategory: parentCategory || null, attributes };
+        let data = { name, parentCategory: parentCategory || null, attributes, brands };
         if (imageFile) {
             const uploading = await uploadToCloudinary(imageFile.buffer);
             if (!uploading) {
@@ -120,6 +120,9 @@ export const updateCategory = async (req, res, next) => {
         }
         if (validatedData.attributes !== undefined) {
             updates.attributes = validatedData.attributes;
+        }
+        if (validatedData.brands !== undefined) {
+            updates.brands = validatedData.brands;
         }
         const requestedParent = validatedData.parentCategory;
         if (requestedParent !== undefined) {

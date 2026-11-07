@@ -34,7 +34,7 @@ export const createCategory = async (
         errors: parsedBody.error.issues,
       });
     }
-    const { name, parentCategory, attributes } = parsedBody.data;
+    const { name, parentCategory, attributes, brands } = parsedBody.data;
     const imageFile = req.file;
 
     if (parentCategory && !mongoose.isValidObjectId(parentCategory)) {
@@ -69,8 +69,9 @@ export const createCategory = async (
       name: string;
       parentCategory: string | null;
       attributes?: typeof attributes;
+      brands?: typeof brands;
       Image?: { cloudinaryId: string; publicId: string };
-    } = { name, parentCategory: parentCategory || null, attributes };
+    } = { name, parentCategory: parentCategory || null, attributes, brands };
     if (imageFile) {
       const uploading = await uploadToCloudinary(imageFile.buffer);
       if (!uploading) {
@@ -146,6 +147,7 @@ export const updateCategory = async (
       name?: string;
       parentCategory?: string | null;
       attributes?: typeof validatedData.attributes;
+      brands?: typeof validatedData.brands;
       Image?: { cloudinaryId: string; publicId: string };
     } = {};
     const oldParentId = categoryData.parentCategory?.toString() ?? null;
@@ -156,6 +158,9 @@ export const updateCategory = async (
     }
     if (validatedData.attributes !== undefined) {
       updates.attributes = validatedData.attributes;
+    }
+    if (validatedData.brands !== undefined) {
+      updates.brands = validatedData.brands;
     }
 
     const requestedParent = validatedData.parentCategory;

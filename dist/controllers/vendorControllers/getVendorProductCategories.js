@@ -19,7 +19,7 @@ export const getVendorProductCategories = async (_req, res, next) => {
         const levelThreeCategories = levelTwoIds.length > 0
             ? await category
                 .find({ parentCategory: { $in: levelTwoIds } })
-                .select("_id name parentCategory")
+                .select("_id name parentCategory brands")
                 .sort({ name: 1 })
                 .lean()
             : [];
@@ -30,6 +30,7 @@ export const getVendorProductCategories = async (_req, res, next) => {
             children.push({
                 _id: String(child._id),
                 name: child.name,
+                brands: child.brands ?? [],
             });
             childrenByParent.set(parentId, children);
         }

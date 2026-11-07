@@ -29,14 +29,14 @@ export const getVendorProductCategories = async (
       levelTwoIds.length > 0
         ? await category
             .find({ parentCategory: { $in: levelTwoIds } })
-            .select("_id name parentCategory")
+            .select("_id name parentCategory brands")
             .sort({ name: 1 })
             .lean()
         : [];
 
     const childrenByParent = new Map<
       string,
-      Array<{ _id: string; name: string }>
+      Array<{ _id: string; name: string; brands: string[] }>
     >();
 
     for (const child of levelThreeCategories) {
@@ -45,6 +45,7 @@ export const getVendorProductCategories = async (
       children.push({
         _id: String(child._id),
         name: child.name,
+        brands: child.brands ?? [],
       });
       childrenByParent.set(parentId, children);
     }
@@ -54,7 +55,7 @@ export const getVendorProductCategories = async (
       Array<{
         _id: string;
         name: string;
-        children: Array<{ _id: string; name: string }>;
+        children: Array<{ _id: string; name: string; brands: string[] }>;
       }>
     >();
 
