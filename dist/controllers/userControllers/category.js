@@ -314,16 +314,8 @@ export const searchResults = async (req, res, next) => {
             status: "active",
             isDeleted: { $ne: true },
         };
-        const [matchingCount] = await ProductSchema.aggregate([
-            { $match: activeProductsMatch },
-            salePriceStage,
-            ...filteredProductStages(matchProducts),
-            { $count: "totalProducts" },
-        ]);
-        const totalProducts = matchingCount?.totalProducts ?? 0;
-        const totalPages = Math.max(1, Math.ceil(totalProducts / limit));
-        const currentPage = Math.min(requestedPage, totalPages);
-        const skipped = (currentPage - 1) * limit;
+        const currentPage = requestedPage;
+        const skipped = (requestedPage - 1) * limit;
         const [result] = await ProductSchema.aggregate([
             { $match: activeProductsMatch },
             salePriceStage,
@@ -360,8 +352,21 @@ export const searchResults = async (req, res, next) => {
                             },
                         },
                     ],
+                    total: [
+                        ...filteredProductStages(matchProducts),
+                        { $count: "totalProducts" },
+                    ],
                     categories: [
                         ...filteredProductStages(matchWithoutCategory, true),
+                        {
+                            $match: { "categoryInfo._id": { $ne: null } },
+                        },
+                        {
+                            $group: {
+                                _id: "$categoryInfo._id",
+                                categoryInfo: { $first: "$categoryInfo" },
+                            },
+                        },
                         {
                             $graphLookup: {
                                 from: category.collection.name,
@@ -441,6 +446,8 @@ export const searchResults = async (req, res, next) => {
                 },
             },
         ]);
+        const totalProducts = result?.total?.[0]?.totalProducts ?? 0;
+        const totalPages = Math.max(1, Math.ceil(totalProducts / limit));
         return res.status(200).json({
             success: true,
             currentPage,
