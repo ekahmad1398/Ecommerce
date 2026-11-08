@@ -1,4 +1,6 @@
+import mongoose from "mongoose";
 import category from "../../models/category.js";
+import ProductSchema from "../../models/Product.js";
 export const getHomeCategories = async (req, res, next) => {
     try {
         const requestedLimit = Number(req.query.limit);
@@ -94,54 +96,341 @@ export const getHomeCategories = async (req, res, next) => {
         next(error);
     }
 };
-export const GetCategories = async (req, res, next) => {
+const queryValues = (value) => (Array.isArray(value) ? value : [value]).filter((entry) => typeof entry === "string" && entry.length > 0);
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const numericQuery = (value) => {
+    if (typeof value !== "string" || !value.trim())
+        return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+};
+export const searchResults = async (req, res, next) => {
     try {
-        const parentFilter = { parentCategory: null };
-        const totalCategories = await category.countDocuments(parentFilter);
-        const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
-        const totalPages = Math.ceil(totalCategories / limit);
-        const page = Math.min(Math.max(Number(req.query.page) || 1, 1), Math.max(totalPages, 1));
-        const skip = (page - 1) * limit;
-        const parentCategories = await category
-            .find(parentFilter)
-            .select("name Image _id ProductCount")
-            .sort({ ProductCount: -1 })
-            .skip(skip)
-            .limit(limit)
-            .lean();
-        const children = await category
-            .find({
-            parentCategory: { $in: parentCategories.map(({ _id }) => _id) },
-        })
-            .select("name Image parentCategory ProductCount attributes")
-            .sort({ createdAt: -1 })
-            .lean();
-        const childrenByParent = new Map();
-        for (const child of children) {
-            const parentId = String(child.parentCategory);
-            const siblings = childrenByParent.get(parentId) ?? [];
-            siblings.push(child);
-            childrenByParent.set(parentId, siblings);
+        const categoryValues = queryValues(req.query.category);
+        if (categoryValues.some((id) => !mongoose.isValidObjectId(id))) {
+            return res.status(400).json({
+                success: false,
+                message: "One or more selected categories are invalid.",
+            });
         }
-        const formatedData = parentCategories.map(({ Image, attributes, ...parent }) => ({
-            ...parent,
-            image: Image,
-            attributes,
-            children: (childrenByParent.get(String(parent._id)) ?? []).map(({ Image, attributes, ...child }) => ({
-                ...child,
-                image: Image,
-                attributes,
-            })),
-        }));
-        res.status(200).json({
+        const selectedCategoryIds = categoryValues.map((id) => new mongoose.Types.ObjectId(id));
+        const categories = selectedCategoryIds.length
+            ? await category.aggregate([
+                { $match: { _id: { $in: selectedCategoryIds } } },
+                {
+                    $graphLookup: {
+                        from: category.collection.name,
+                        startWith: "$_id",
+                        connectFromField: "_id",
+                        connectToField: "parentCategory",
+                        maxDepth: 2,
+                        as: "descendants",
+                    },
+                },
+                {
+                    $project: {
+                        ids: {
+                            $concatArrays: [
+                                ["$_id"],
+                                { $ifNull: ["$descendants._id", []] },
+                            ],
+                        },
+                    },
+                },
+                { $unwind: "$ids" },
+                { $group: { _id: null, ids: { $addToSet: "$ids" } } },
+            ])
+            : [];
+        const matchingCategoryIds = categories[0]?.ids ?? [];
+        const selectedCategories = selectedCategoryIds.length
+            ? await category
+                .find({ _id: { $in: selectedCategoryIds } })
+                .select("_id name")
+                .lean()
+            : [];
+        const rawQuery = typeof req.query.q === "string" && req.query.q.trim()
+            ? req.query.q
+            : typeof req.query.search === "string"
+                ? req.query.search
+                : "";
+        const search = rawQuery.trim().slice(0, 100);
+        const searchRegex = search ? new RegExp(escapeRegex(search), "i") : null;
+        const brands = queryValues(req.query.brand).slice(0, 50);
+        const selectedColors = queryValues(req.query.color).slice(0, 50);
+        const minPrice = numericQuery(req.query.minPrice);
+        const maxPrice = numericQuery(req.query.maxPrice);
+        const rating = numericQuery(req.query.rating);
+        if ([minPrice, maxPrice, rating].some((value) => value !== undefined && value < 0) ||
+            (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice)) {
+            return res.status(400).json({
+                success: false,
+                message: "One or more product filters are invalid.",
+            });
+        }
+        const limitValue = numericQuery(req.query.limit);
+        const pageValue = numericQuery(req.query.page);
+        const limit = Math.min(Math.max(Math.floor(limitValue ?? 20), 1), 50);
+        const requestedPage = Math.max(Math.floor(pageValue ?? 1), 1);
+        const requestedSkip = (requestedPage - 1) * limit;
+        if (!Number.isSafeInteger(requestedSkip)) {
+            return res.status(400).json({
+                success: false,
+                message: "The requested page is too large.",
+            });
+        }
+        const sort = typeof req.query.sort === "string" ? req.query.sort : "featured";
+        const sortOrder = sort === "price-low"
+            ? { salePrice: 1, _id: 1 }
+            : sort === "price-high"
+                ? { salePrice: -1, _id: 1 }
+                : sort === "rating"
+                    ? { rating: -1, _id: 1 }
+                    : { createdAt: -1, _id: -1 };
+        const categoryInfoStages = () => [
+            {
+                $lookup: {
+                    from: category.collection.name,
+                    localField: "categoryID",
+                    foreignField: "_id",
+                    as: "categoryInfo",
+                },
+            },
+            {
+                $addFields: {
+                    categoryInfo: {
+                        $let: {
+                            vars: { category: { $arrayElemAt: ["$categoryInfo", 0] } },
+                            in: {
+                                $cond: {
+                                    if: { $eq: [{ $type: "$$category" }, "object"] },
+                                    then: {
+                                        _id: "$$category._id",
+                                        name: "$$category.name",
+                                        attributes: "$$category.attributes",
+                                    },
+                                    else: "$$category",
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        ];
+        const salePriceStage = {
+            $addFields: {
+                salePrice: {
+                    $multiply: [
+                        "$price",
+                        {
+                            $subtract: [
+                                1,
+                                {
+                                    $divide: [{ $ifNull: ["$discount", 0] }, 100],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        };
+        const filteredProductStages = (match, includeCategoryInfo = false) => {
+            const stages = [
+                { $match: match },
+            ];
+            if (includeCategoryInfo || searchRegex) {
+                stages.push(...categoryInfoStages());
+            }
+            if (searchRegex) {
+                stages.push({
+                    $match: {
+                        $or: [
+                            { name: searchRegex },
+                            { brand: searchRegex },
+                            { description: searchRegex },
+                            { "categoryInfo.name": searchRegex },
+                        ],
+                    },
+                });
+            }
+            return stages;
+        };
+        const categoryMatch = {};
+        if (selectedCategoryIds.length) {
+            categoryMatch.categoryID = { $in: matchingCategoryIds };
+        }
+        const brandMatch = {};
+        if (brands.length)
+            brandMatch.brand = { $in: brands };
+        const colorMatch = {};
+        if (selectedColors.length)
+            colorMatch.colors = { $in: selectedColors };
+        const priceMatch = {};
+        if (minPrice !== undefined || maxPrice !== undefined) {
+            priceMatch.salePrice = {
+                ...(minPrice !== undefined ? { $gte: minPrice } : {}),
+                ...(maxPrice !== undefined ? { $lte: maxPrice } : {}),
+            };
+        }
+        const ratingMatch = rating === undefined ? {} : { rating: { $gte: rating } };
+        const matchWithoutCategory = {
+            ...brandMatch,
+            ...colorMatch,
+            ...priceMatch,
+            ...ratingMatch,
+        };
+        const matchWithoutBrand = {
+            ...categoryMatch,
+            ...colorMatch,
+            ...priceMatch,
+            ...ratingMatch,
+        };
+        const matchWithoutPrice = {
+            ...categoryMatch,
+            ...brandMatch,
+            ...colorMatch,
+            ...ratingMatch,
+        };
+        const matchWithoutRating = {
+            ...categoryMatch,
+            ...brandMatch,
+            ...colorMatch,
+            ...priceMatch,
+        };
+        const matchWithoutColor = {
+            ...categoryMatch,
+            ...brandMatch,
+            ...priceMatch,
+            ...ratingMatch,
+        };
+        const matchProducts = {
+            ...categoryMatch,
+            ...brandMatch,
+            ...colorMatch,
+            ...priceMatch,
+            ...ratingMatch,
+        };
+        const activeProductsMatch = {
+            status: "active",
+            isDeleted: { $ne: true },
+        };
+        const [matchingCount] = await ProductSchema.aggregate([
+            { $match: activeProductsMatch },
+            salePriceStage,
+            ...filteredProductStages(matchProducts),
+            { $count: "totalProducts" },
+        ]);
+        const totalProducts = matchingCount?.totalProducts ?? 0;
+        const totalPages = Math.max(1, Math.ceil(totalProducts / limit));
+        const currentPage = Math.min(requestedPage, totalPages);
+        const skipped = (currentPage - 1) * limit;
+        const [result] = await ProductSchema.aggregate([
+            { $match: activeProductsMatch },
+            salePriceStage,
+            {
+                $facet: {
+                    products: [
+                        ...filteredProductStages(matchProducts, true),
+                        { $sort: sortOrder },
+                        { $skip: skipped },
+                        { $limit: limit },
+                        {
+                            $project: {
+                                _id: 0,
+                                id: { $toString: "$_id" },
+                                name: 1,
+                                description: 1,
+                                brand: 1,
+                                categoryID: "$categoryInfo.name",
+                                categoryId: { $toString: "$categoryInfo._id" },
+                                stock: 1,
+                                price: 1,
+                                discount: 1,
+                                rating: 1,
+                                reviewCount: 1,
+                                attributes: 1,
+                                color: { $ifNull: [{ $arrayElemAt: ["$colors", 0] }, ""] },
+                                images: {
+                                    $map: {
+                                        input: { $ifNull: ["$images", []] },
+                                        as: "image",
+                                        in: "$$image.publicId",
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                    categories: [
+                        ...filteredProductStages(matchWithoutCategory, true),
+                        {
+                            $group: {
+                                _id: "$categoryInfo._id",
+                                name: { $first: "$categoryInfo.name" },
+                            },
+                        },
+                        { $sort: { name: 1 } },
+                        { $project: { _id: 0, id: { $toString: "$_id" }, name: 1 } },
+                    ],
+                    brands: [
+                        ...filteredProductStages(matchWithoutBrand),
+                        { $group: { _id: "$brand" } },
+                        { $sort: { _id: 1 } },
+                        { $project: { _id: 0, name: "$_id" } },
+                    ],
+                    colors: [
+                        ...filteredProductStages(matchWithoutColor),
+                        { $unwind: "$colors" },
+                        { $match: { colors: { $type: "string", $ne: "" } } },
+                        { $group: { _id: "$colors" } },
+                        { $sort: { _id: 1 } },
+                        { $project: { _id: 0, name: "$_id" } },
+                    ],
+                    priceRange: [
+                        ...filteredProductStages(matchWithoutPrice),
+                        {
+                            $group: {
+                                _id: null,
+                                min: { $min: "$salePrice" },
+                                max: { $max: "$salePrice" },
+                            },
+                        },
+                        { $project: { _id: 0 } },
+                    ],
+                    ratingRange: [
+                        ...filteredProductStages(matchWithoutRating),
+                        {
+                            $group: {
+                                _id: null,
+                                min: { $min: "$rating" },
+                                max: { $max: "$rating" },
+                            },
+                        },
+                        { $project: { _id: 0 } },
+                    ],
+                },
+            },
+        ]);
+        return res.status(200).json({
             success: true,
-            currentPage: page,
+            currentPage,
             totalPages,
-            totalCategories,
-            categories: formatedData,
+            totalProducts,
+            skipped,
+            limit,
+            products: result?.products ?? [],
+            categories: result?.categories ?? [],
+            selectedCategories: selectedCategories.map((selectedCategory) => ({
+                id: selectedCategory._id.toString(),
+                name: selectedCategory.name,
+            })),
+            selectedBrands: brands,
+            selectedColors,
+            brands: (result?.brands ?? []).map((brandItem) => brandItem.name),
+            colors: (result?.colors ?? []).map((colorItem) => colorItem.name),
+            priceRange: result?.priceRange[0] ?? null,
+            ratingRange: result?.ratingRange[0] ?? null,
         });
     }
     catch (error) {
-        next(error);
+        return next(error);
     }
 };
