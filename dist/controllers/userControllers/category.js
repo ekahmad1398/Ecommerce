@@ -206,6 +206,7 @@ export const searchResults = async (req, res, next) => {
                                     then: {
                                         _id: "$$category._id",
                                         name: "$$category.name",
+                                        parentCategory: "$$category.parentCategory",
                                         attributes: "$$category.attributes",
                                     },
                                     else: "$$category",
@@ -362,9 +363,40 @@ export const searchResults = async (req, res, next) => {
                     categories: [
                         ...filteredProductStages(matchWithoutCategory, true),
                         {
+                            $graphLookup: {
+                                from: category.collection.name,
+                                startWith: "$categoryInfo.parentCategory",
+                                connectFromField: "parentCategory",
+                                connectToField: "_id",
+                                as: "ancestors",
+                                maxDepth: 3,
+                            },
+                        },
+                        {
+                            $addFields: {
+                                department: {
+                                    $ifNull: [
+                                        {
+                                            $arrayElemAt: [
+                                                {
+                                                    $filter: {
+                                                        input: "$ancestors",
+                                                        as: "ancestor",
+                                                        cond: { $eq: ["$$ancestor.parentCategory", null] },
+                                                    },
+                                                },
+                                                0,
+                                            ],
+                                        },
+                                        "$categoryInfo",
+                                    ],
+                                },
+                            },
+                        },
+                        {
                             $group: {
-                                _id: "$categoryInfo._id",
-                                name: { $first: "$categoryInfo.name" },
+                                _id: "$department._id",
+                                name: { $first: "$department.name" },
                             },
                         },
                         { $sort: { name: 1 } },
