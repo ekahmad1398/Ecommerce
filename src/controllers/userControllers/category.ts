@@ -127,21 +127,37 @@ export const searchResults = async (
   next: NextFunction,
 ) => {
   try {
-    const categoryValues = queryValues(req.query.category);
-    if (categoryValues.some((id) => !mongoose.isValidObjectId(id))) {
+    if (
+      Array.isArray(req.query.category) &&
+      req.query.category.length > 1
+    ) {
       return res.status(400).json({
         success: false,
-        message: "One or more selected categories are invalid.",
+        message: "Only one category can be selected at a time.",
+      });
+    }
+    const categoryValue = Array.isArray(req.query.category)
+      ? req.query.category[0]
+      : req.query.category;
+    if (
+      typeof categoryValue === "string" &&
+      categoryValue &&
+      !mongoose.isValidObjectId(categoryValue)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "The selected category is invalid.",
       });
     }
 
-    const selectedCategoryIds = categoryValues.map(
-      (id) => new mongoose.Types.ObjectId(id),
-    );
+    const selectedCategoryId =
+      typeof categoryValue === "string" && categoryValue
+        ? new mongoose.Types.ObjectId(categoryValue)
+        : null;
     const [categories, selectedCategories] = await Promise.all([
-      selectedCategoryIds.length
+      selectedCategoryId
         ? category.aggregate([
-            { $match: { _id: { $in: selectedCategoryIds } } },
+            { $match: { _id: { $in: [selectedCategoryId] } } },
             {
               $graphLookup: {
                 from: category.collection.name,
@@ -166,42 +182,51 @@ export const searchResults = async (
             { $group: { _id: null, ids: { $addToSet: "$ids" } } },
           ])
         : Promise.resolve([]),
-      selectedCategoryIds.length
+      selectedCategoryId
         ? category
-            .find({ _id: { $in: selectedCategoryIds } })
+            .find({ _id: { $in: [selectedCategoryId] } })
             .select("_id name parentCategory attributes brands")
             .lean()
         : Promise.resolve([]),
     ]);
     const matchingCategoryIds = categories[0]?.ids ?? [];
 
-    const siblingCategoryIds = new Set<string>();
+    const relatedCategoryIds = new Set<string>();
     if (selectedCategories.length) {
-      const parentKeys = [
+      const scopeIds = [
         ...new Set(
           selectedCategories.map((selected) =>
-            selected.parentCategory
-              ? selected.parentCategory.toString()
-              : null,
+            (selected.parentCategory ?? selected._id).toString(),
           ),
         ),
-      ];
-      const parentObjectIds = parentKeys
-        .filter((key): key is string => key !== null)
-        .map((id) => new mongoose.Types.ObjectId(id));
-      const siblingDocs = await category
-        .find({
-          $or: [
-            ...(parentObjectIds.length
-              ? [{ parentCategory: { $in: parentObjectIds } }]
-              : []),
-            ...(parentKeys.includes(null) ? [{ parentCategory: null }] : []),
-          ],
-        })
-        .select("_id")
-        .lean();
-      for (const doc of siblingDocs) {
-        siblingCategoryIds.add(doc._id.toString());
+      ].map((id) => new mongoose.Types.ObjectId(id));
+      const related = await category.aggregate([
+        { $match: { _id: { $in: scopeIds } } },
+        {
+          $graphLookup: {
+            from: category.collection.name,
+            startWith: "$_id",
+            connectFromField: "_id",
+            connectToField: "parentCategory",
+            maxDepth: 3,
+            as: "descendants",
+          },
+        },
+        {
+          $project: {
+            ids: {
+              $concatArrays: [
+                ["$_id"],
+                { $ifNull: ["$descendants._id", []] },
+              ],
+            },
+          },
+        },
+        { $unwind: "$ids" },
+        { $group: { _id: null, ids: { $addToSet: "$ids" } } },
+      ]);
+      for (const id of related[0]?.ids ?? []) {
+        relatedCategoryIds.add(id.toString());
       }
     }
 
@@ -333,7 +358,7 @@ export const searchResults = async (
     };
 
     const categoryMatch: Record<string, unknown> = {};
-    if (selectedCategoryIds.length) {
+    if (selectedCategoryId) {
       categoryMatch.categoryID = { $in: matchingCategoryIds };
     }
 
@@ -400,7 +425,7 @@ export const searchResults = async (
     const skipped = (requestedPage - 1) * limit;
 
     const categoriesFacet: mongoose.PipelineStage.FacetPipelineStage[] =
-      siblingCategoryIds.size > 0
+      relatedCategoryIds.size > 0
         ? [
             ...filteredProductStages(matchWithoutCategory, true),
             { $match: { "categoryInfo._id": { $ne: null } } },
@@ -556,9 +581,9 @@ export const searchResults = async (
       limit,
       products: result?.products ?? [],
       categories:
-        siblingCategoryIds.size > 0
+        relatedCategoryIds.size > 0
           ? (result?.categories ?? []).filter(
-              (item: { id: string }) => siblingCategoryIds.has(item.id),
+              (item: { id: string }) => relatedCategoryIds.has(item.id),
             )
           : (result?.categories ?? []),
       selectedCategories: selectedCategories.map((selectedCategory) => ({
@@ -577,9 +602,9 @@ export const searchResults = async (
       })),
       selectedBrands: brands,
       selectedColors,
-      brands: (result?.brands ?? []).map(
-        (brandItem: { name: string }) => brandItem.name,
-      ),
+      brands: (result?.brands ?? [])
+        .map((brandItem: { name: string }) => brandItem.name)
+        .filter((name: string) => !/^(general|gen)$/i.test(name)),
       colors: (result?.colors ?? []).map(
         (colorItem: { name: string }) => colorItem.name,
       ),
