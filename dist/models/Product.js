@@ -80,6 +80,7 @@ const productSchema = new mongoose.Schema({
 productSchema.index({ name: 1 });
 productSchema.index({ categoryID: 1 });
 productSchema.index({ status: 1, isDeleted: 1, categoryID: 1 });
+productSchema.index({ status: 1, isDeleted: 1, createdAt: -1 });
 productSchema.index({ vendorId: 1, status: 1, stock: 1 });
 productSchema.index({ vendorId: 1, sku: 1 }, { unique: true });
 export default mongoose.model("product", productSchema);
