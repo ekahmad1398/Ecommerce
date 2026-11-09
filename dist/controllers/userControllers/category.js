@@ -114,40 +114,67 @@ export const searchResults = async (req, res, next) => {
             });
         }
         const selectedCategoryIds = categoryValues.map((id) => new mongoose.Types.ObjectId(id));
-        const categories = selectedCategoryIds.length
-            ? await category.aggregate([
-                { $match: { _id: { $in: selectedCategoryIds } } },
-                {
-                    $graphLookup: {
-                        from: category.collection.name,
-                        startWith: "$_id",
-                        connectFromField: "_id",
-                        connectToField: "parentCategory",
-                        maxDepth: 2,
-                        as: "descendants",
-                    },
-                },
-                {
-                    $project: {
-                        ids: {
-                            $concatArrays: [
-                                ["$_id"],
-                                { $ifNull: ["$descendants._id", []] },
-                            ],
+        const [categories, selectedCategories] = await Promise.all([
+            selectedCategoryIds.length
+                ? category.aggregate([
+                    { $match: { _id: { $in: selectedCategoryIds } } },
+                    {
+                        $graphLookup: {
+                            from: category.collection.name,
+                            startWith: "$_id",
+                            connectFromField: "_id",
+                            connectToField: "parentCategory",
+                            maxDepth: 2,
+                            as: "descendants",
                         },
                     },
-                },
-                { $unwind: "$ids" },
-                { $group: { _id: null, ids: { $addToSet: "$ids" } } },
-            ])
-            : [];
+                    {
+                        $project: {
+                            ids: {
+                                $concatArrays: [
+                                    ["$_id"],
+                                    { $ifNull: ["$descendants._id", []] },
+                                ],
+                            },
+                        },
+                    },
+                    { $unwind: "$ids" },
+                    { $group: { _id: null, ids: { $addToSet: "$ids" } } },
+                ])
+                : Promise.resolve([]),
+            selectedCategoryIds.length
+                ? category
+                    .find({ _id: { $in: selectedCategoryIds } })
+                    .select("_id name parentCategory attributes brands")
+                    .lean()
+                : Promise.resolve([]),
+        ]);
         const matchingCategoryIds = categories[0]?.ids ?? [];
-        const selectedCategories = selectedCategoryIds.length
-            ? await category
-                .find({ _id: { $in: selectedCategoryIds } })
-                .select("_id name")
-                .lean()
-            : [];
+        const siblingCategoryIds = new Set();
+        if (selectedCategories.length) {
+            const parentKeys = [
+                ...new Set(selectedCategories.map((selected) => selected.parentCategory
+                    ? selected.parentCategory.toString()
+                    : null)),
+            ];
+            const parentObjectIds = parentKeys
+                .filter((key) => key !== null)
+                .map((id) => new mongoose.Types.ObjectId(id));
+            const siblingDocs = await category
+                .find({
+                $or: [
+                    ...(parentObjectIds.length
+                        ? [{ parentCategory: { $in: parentObjectIds } }]
+                        : []),
+                    ...(parentKeys.includes(null) ? [{ parentCategory: null }] : []),
+                ],
+            })
+                .select("_id")
+                .lean();
+            for (const doc of siblingDocs) {
+                siblingCategoryIds.add(doc._id.toString());
+            }
+        }
         const rawQuery = typeof req.query.q === "string" && req.query.q.trim()
             ? req.query.q
             : typeof req.query.search === "string"
@@ -316,6 +343,68 @@ export const searchResults = async (req, res, next) => {
         };
         const currentPage = requestedPage;
         const skipped = (requestedPage - 1) * limit;
+        const categoriesFacet = siblingCategoryIds.size > 0
+            ? [
+                ...filteredProductStages(matchWithoutCategory, true),
+                { $match: { "categoryInfo._id": { $ne: null } } },
+                {
+                    $group: {
+                        _id: "$categoryInfo._id",
+                        name: { $first: "$categoryInfo.name" },
+                    },
+                },
+                { $sort: { name: 1 } },
+                { $project: { _id: 0, id: { $toString: "$_id" }, name: 1 } },
+            ]
+            : [
+                ...filteredProductStages(matchWithoutCategory, true),
+                { $match: { "categoryInfo._id": { $ne: null } } },
+                {
+                    $group: {
+                        _id: "$categoryInfo._id",
+                        categoryInfo: { $first: "$categoryInfo" },
+                    },
+                },
+                {
+                    $graphLookup: {
+                        from: category.collection.name,
+                        startWith: "$categoryInfo.parentCategory",
+                        connectFromField: "parentCategory",
+                        connectToField: "_id",
+                        as: "ancestors",
+                        maxDepth: 3,
+                    },
+                },
+                {
+                    $addFields: {
+                        department: {
+                            $ifNull: [
+                                {
+                                    $arrayElemAt: [
+                                        {
+                                            $filter: {
+                                                input: "$ancestors",
+                                                as: "ancestor",
+                                                cond: { $eq: ["$$ancestor.parentCategory", null] },
+                                            },
+                                        },
+                                        0,
+                                    ],
+                                },
+                                "$categoryInfo",
+                            ],
+                        },
+                    },
+                },
+                {
+                    $group: {
+                        _id: "$department._id",
+                        name: { $first: "$department.name" },
+                    },
+                },
+                { $sort: { name: 1 } },
+                { $project: { _id: 0, id: { $toString: "$_id" }, name: 1 } },
+            ];
         const [result] = await ProductSchema.aggregate([
             { $match: activeProductsMatch },
             salePriceStage,
@@ -356,57 +445,7 @@ export const searchResults = async (req, res, next) => {
                         ...filteredProductStages(matchProducts),
                         { $count: "totalProducts" },
                     ],
-                    categories: [
-                        ...filteredProductStages(matchWithoutCategory, true),
-                        {
-                            $match: { "categoryInfo._id": { $ne: null } },
-                        },
-                        {
-                            $group: {
-                                _id: "$categoryInfo._id",
-                                categoryInfo: { $first: "$categoryInfo" },
-                            },
-                        },
-                        {
-                            $graphLookup: {
-                                from: category.collection.name,
-                                startWith: "$categoryInfo.parentCategory",
-                                connectFromField: "parentCategory",
-                                connectToField: "_id",
-                                as: "ancestors",
-                                maxDepth: 3,
-                            },
-                        },
-                        {
-                            $addFields: {
-                                department: {
-                                    $ifNull: [
-                                        {
-                                            $arrayElemAt: [
-                                                {
-                                                    $filter: {
-                                                        input: "$ancestors",
-                                                        as: "ancestor",
-                                                        cond: { $eq: ["$$ancestor.parentCategory", null] },
-                                                    },
-                                                },
-                                                0,
-                                            ],
-                                        },
-                                        "$categoryInfo",
-                                    ],
-                                },
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: "$department._id",
-                                name: { $first: "$department.name" },
-                            },
-                        },
-                        { $sort: { name: 1 } },
-                        { $project: { _id: 0, id: { $toString: "$_id" }, name: 1 } },
-                    ],
+                    categories: categoriesFacet,
                     brands: [
                         ...filteredProductStages(matchWithoutBrand),
                         { $group: { _id: "$brand" } },
@@ -456,10 +495,22 @@ export const searchResults = async (req, res, next) => {
             skipped,
             limit,
             products: result?.products ?? [],
-            categories: result?.categories ?? [],
+            categories: siblingCategoryIds.size > 0
+                ? (result?.categories ?? []).filter((item) => siblingCategoryIds.has(item.id))
+                : (result?.categories ?? []),
             selectedCategories: selectedCategories.map((selectedCategory) => ({
                 id: selectedCategory._id.toString(),
                 name: selectedCategory.name,
+                attributes: (selectedCategory.attributes ?? [])
+                    .filter((attribute) => attribute.filterable)
+                    .map((attribute) => ({
+                    key: attribute.key,
+                    label: attribute.label,
+                    type: attribute.type,
+                    unit: attribute.unit,
+                    options: attribute.options,
+                })),
+                brands: selectedCategory.brands ?? [],
             })),
             selectedBrands: brands,
             selectedColors,

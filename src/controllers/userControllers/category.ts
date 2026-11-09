@@ -138,40 +138,72 @@ export const searchResults = async (
     const selectedCategoryIds = categoryValues.map(
       (id) => new mongoose.Types.ObjectId(id),
     );
-    const categories = selectedCategoryIds.length
-      ? await category.aggregate([
-          { $match: { _id: { $in: selectedCategoryIds } } },
-          {
-            $graphLookup: {
-              from: category.collection.name,
-              startWith: "$_id",
-              connectFromField: "_id",
-              connectToField: "parentCategory",
-              maxDepth: 2,
-              as: "descendants",
-            },
-          },
-          {
-            $project: {
-              ids: {
-                $concatArrays: [
-                  ["$_id"],
-                  { $ifNull: ["$descendants._id", []] },
-                ],
+    const [categories, selectedCategories] = await Promise.all([
+      selectedCategoryIds.length
+        ? category.aggregate([
+            { $match: { _id: { $in: selectedCategoryIds } } },
+            {
+              $graphLookup: {
+                from: category.collection.name,
+                startWith: "$_id",
+                connectFromField: "_id",
+                connectToField: "parentCategory",
+                maxDepth: 2,
+                as: "descendants",
               },
             },
-          },
-          { $unwind: "$ids" },
-          { $group: { _id: null, ids: { $addToSet: "$ids" } } },
-        ])
-      : [];
+            {
+              $project: {
+                ids: {
+                  $concatArrays: [
+                    ["$_id"],
+                    { $ifNull: ["$descendants._id", []] },
+                  ],
+                },
+              },
+            },
+            { $unwind: "$ids" },
+            { $group: { _id: null, ids: { $addToSet: "$ids" } } },
+          ])
+        : Promise.resolve([]),
+      selectedCategoryIds.length
+        ? category
+            .find({ _id: { $in: selectedCategoryIds } })
+            .select("_id name parentCategory attributes brands")
+            .lean()
+        : Promise.resolve([]),
+    ]);
     const matchingCategoryIds = categories[0]?.ids ?? [];
-    const selectedCategories = selectedCategoryIds.length
-      ? await category
-          .find({ _id: { $in: selectedCategoryIds } })
-          .select("_id name")
-          .lean()
-      : [];
+
+    const siblingCategoryIds = new Set<string>();
+    if (selectedCategories.length) {
+      const parentKeys = [
+        ...new Set(
+          selectedCategories.map((selected) =>
+            selected.parentCategory
+              ? selected.parentCategory.toString()
+              : null,
+          ),
+        ),
+      ];
+      const parentObjectIds = parentKeys
+        .filter((key): key is string => key !== null)
+        .map((id) => new mongoose.Types.ObjectId(id));
+      const siblingDocs = await category
+        .find({
+          $or: [
+            ...(parentObjectIds.length
+              ? [{ parentCategory: { $in: parentObjectIds } }]
+              : []),
+            ...(parentKeys.includes(null) ? [{ parentCategory: null }] : []),
+          ],
+        })
+        .select("_id")
+        .lean();
+      for (const doc of siblingDocs) {
+        siblingCategoryIds.add(doc._id.toString());
+      }
+    }
 
     const rawQuery =
       typeof req.query.q === "string" && req.query.q.trim()
@@ -367,51 +399,23 @@ export const searchResults = async (
     const currentPage = requestedPage;
     const skipped = (requestedPage - 1) * limit;
 
-    const [result] = await ProductSchema.aggregate([
-      { $match: activeProductsMatch },
-      salePriceStage,
-      {
-        $facet: {
-          products: [
-            ...filteredProductStages(matchProducts, true),
-            { $sort: sortOrder },
-            { $skip: skipped },
-            { $limit: limit },
+    const categoriesFacet: mongoose.PipelineStage.FacetPipelineStage[] =
+      siblingCategoryIds.size > 0
+        ? [
+            ...filteredProductStages(matchWithoutCategory, true),
+            { $match: { "categoryInfo._id": { $ne: null } } },
             {
-              $project: {
-                _id: 0,
-                id: { $toString: "$_id" },
-                name: 1,
-                description: 1,
-                brand: 1,
-                categoryID: "$categoryInfo.name",
-                categoryId: { $toString: "$categoryInfo._id" },
-                stock: 1,
-                price: 1,
-                discount: 1,
-                rating: 1,
-                reviewCount: 1,
-                attributes: 1,
-                color: { $ifNull: [{ $arrayElemAt: ["$colors", 0] }, ""] },
-                images: {
-                  $map: {
-                    input: { $ifNull: ["$images", []] },
-                    as: "image",
-                    in: "$$image.publicId",
-                  },
-                },
+              $group: {
+                _id: "$categoryInfo._id",
+                name: { $first: "$categoryInfo.name" },
               },
             },
-          ],
-          total: [
-            ...filteredProductStages(matchProducts),
-            { $count: "totalProducts" },
-          ],
-          categories: [
+            { $sort: { name: 1 } },
+            { $project: { _id: 0, id: { $toString: "$_id" }, name: 1 } },
+          ]
+        : [
             ...filteredProductStages(matchWithoutCategory, true),
-            {
-              $match: { "categoryInfo._id": { $ne: null } },
-            },
+            { $match: { "categoryInfo._id": { $ne: null } } },
             {
               $group: {
                 _id: "$categoryInfo._id",
@@ -457,7 +461,49 @@ export const searchResults = async (
             },
             { $sort: { name: 1 } },
             { $project: { _id: 0, id: { $toString: "$_id" }, name: 1 } },
+          ];
+
+    const [result] = await ProductSchema.aggregate([
+      { $match: activeProductsMatch },
+      salePriceStage,
+      {
+        $facet: {
+          products: [
+            ...filteredProductStages(matchProducts, true),
+            { $sort: sortOrder },
+            { $skip: skipped },
+            { $limit: limit },
+            {
+              $project: {
+                _id: 0,
+                id: { $toString: "$_id" },
+                name: 1,
+                description: 1,
+                brand: 1,
+                categoryID: "$categoryInfo.name",
+                categoryId: { $toString: "$categoryInfo._id" },
+                stock: 1,
+                price: 1,
+                discount: 1,
+                rating: 1,
+                reviewCount: 1,
+                attributes: 1,
+                color: { $ifNull: [{ $arrayElemAt: ["$colors", 0] }, ""] },
+                images: {
+                  $map: {
+                    input: { $ifNull: ["$images", []] },
+                    as: "image",
+                    in: "$$image.publicId",
+                  },
+                },
+              },
+            },
           ],
+          total: [
+            ...filteredProductStages(matchProducts),
+            { $count: "totalProducts" },
+          ],
+          categories: categoriesFacet,
           brands: [
             ...filteredProductStages(matchWithoutBrand),
             { $group: { _id: "$brand" } },
@@ -509,10 +555,25 @@ export const searchResults = async (
       skipped,
       limit,
       products: result?.products ?? [],
-      categories: result?.categories ?? [],
+      categories:
+        siblingCategoryIds.size > 0
+          ? (result?.categories ?? []).filter(
+              (item: { id: string }) => siblingCategoryIds.has(item.id),
+            )
+          : (result?.categories ?? []),
       selectedCategories: selectedCategories.map((selectedCategory) => ({
         id: selectedCategory._id.toString(),
         name: selectedCategory.name,
+        attributes: (selectedCategory.attributes ?? [])
+          .filter((attribute) => attribute.filterable)
+          .map((attribute) => ({
+            key: attribute.key,
+            label: attribute.label,
+            type: attribute.type,
+            unit: attribute.unit,
+            options: attribute.options,
+          })),
+        brands: selectedCategory.brands ?? [],
       })),
       selectedBrands: brands,
       selectedColors,
