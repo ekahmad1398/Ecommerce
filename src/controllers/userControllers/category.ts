@@ -154,67 +154,31 @@ export const searchResults = async (
       typeof categoryValue === "string" && categoryValue
         ? new mongoose.Types.ObjectId(categoryValue)
         : null;
-    const [categories, selectedCategories] = await Promise.all([
-      selectedCategoryId
-        ? category.aggregate([
-            { $match: { _id: { $in: [selectedCategoryId] } } },
-            {
-              $graphLookup: {
-                from: category.collection.name,
-                startWith: "$_id",
-                connectFromField: "_id",
-                connectToField: "parentCategory",
-                maxDepth: 2,
-                as: "descendants",
-              },
-            },
-            {
-              $project: {
-                ids: {
-                  $concatArrays: [
-                    ["$_id"],
-                    { $ifNull: ["$descendants._id", []] },
-                  ],
-                },
-              },
-            },
-            { $unwind: "$ids" },
-            { $group: { _id: null, ids: { $addToSet: "$ids" } } },
-          ])
-        : Promise.resolve([]),
-      selectedCategoryId
-        ? category
-            .find({ _id: { $in: [selectedCategoryId] } })
-            .select("_id name parentCategory attributes brands")
-            .lean()
-        : Promise.resolve([]),
-    ]);
-    const matchingCategoryIds = categories[0]?.ids ?? [];
-
+    let matchingCategoryIds: unknown[] = [];
+    let selectedCategories: Record<string, any>[] = [];
     const relatedCategoryIds = new Set<string>();
-    if (selectedCategories.length) {
-      const scopeIds = [
-        ...new Set(
-          selectedCategories.map((selected) =>
-            (selected.parentCategory ?? selected._id).toString(),
-          ),
-        ),
-      ].map((id) => new mongoose.Types.ObjectId(id));
-      const related = await category.aggregate([
-        { $match: { _id: { $in: scopeIds } } },
+
+    if (selectedCategoryId) {
+      const [categoryResult] = await category.aggregate([
+        { $match: { _id: selectedCategoryId } },
         {
           $graphLookup: {
             from: category.collection.name,
             startWith: "$_id",
             connectFromField: "_id",
             connectToField: "parentCategory",
-            maxDepth: 3,
+            maxDepth: 2,
             as: "descendants",
           },
         },
         {
           $project: {
-            ids: {
+            _id: 1,
+            name: 1,
+            parentCategory: 1,
+            attributes: 1,
+            brands: 1,
+            matchIds: {
               $concatArrays: [
                 ["$_id"],
                 { $ifNull: ["$descendants._id", []] },
@@ -222,11 +186,32 @@ export const searchResults = async (
             },
           },
         },
-        { $unwind: "$ids" },
-        { $group: { _id: null, ids: { $addToSet: "$ids" } } },
       ]);
-      for (const id of related[0]?.ids ?? []) {
-        relatedCategoryIds.add(id.toString());
+
+      if (categoryResult) {
+        matchingCategoryIds = categoryResult.matchIds ?? [];
+        selectedCategories = [
+          {
+            _id: categoryResult._id,
+            name: categoryResult.name,
+            parentCategory: categoryResult.parentCategory ?? null,
+            attributes: categoryResult.attributes ?? [],
+            brands: categoryResult.brands ?? [],
+          },
+        ];
+
+        const parentCategoryId = categoryResult.parentCategory ?? null;
+        const siblingDocs = await category
+          .find(
+            parentCategoryId
+              ? { parentCategory: parentCategoryId }
+              : { parentCategory: null },
+          )
+          .select("_id")
+          .lean();
+        for (const doc of siblingDocs) {
+          relatedCategoryIds.add(doc._id.toString());
+        }
       }
     }
 
@@ -240,6 +225,44 @@ export const searchResults = async (
     const searchRegex = search ? new RegExp(escapeRegex(search), "i") : null;
     const brands = queryValues(req.query.brand).slice(0, 50);
     const selectedColors = queryValues(req.query.color).slice(0, 50);
+
+    const filterableAttributes = new Map<string, Record<string, any>>(
+      (selectedCategories[0]?.attributes ?? [])
+        .filter(
+          (attribute: Record<string, any>) =>
+            attribute?.filterable && typeof attribute?.key === "string",
+        )
+        .map((attribute: Record<string, any>) => [
+          attribute.key as string,
+          attribute,
+        ]),
+    );
+    const attributeConditions: Record<string, unknown>[] = [];
+    for (const [paramKey, paramValue] of Object.entries(req.query)) {
+      if (!paramKey.startsWith("attr_")) continue;
+      const attrKey = paramKey.slice(5);
+      if (!attrKey) continue;
+      const definition = filterableAttributes.get(attrKey);
+      if (selectedCategories.length > 0 && !definition) continue;
+      const rawValues = queryValues(paramValue).slice(0, 20);
+      if (!rawValues.length) continue;
+      const typedValues =
+        definition?.type === "number"
+          ? rawValues.map(Number).filter(Number.isFinite)
+          : definition?.type === "boolean"
+            ? rawValues
+                .filter((value) => value === "true" || value === "false")
+                .map((value) => value === "true")
+            : rawValues;
+      if (!typedValues.length) continue;
+      attributeConditions.push({
+        attributes: {
+          $elemMatch: { key: attrKey, value: { $in: typedValues } },
+        },
+      });
+    }
+    const attributeMatch: Record<string, unknown> =
+      attributeConditions.length > 0 ? { $and: attributeConditions } : {};
     const minPrice = numericQuery(req.query.minPrice);
     const maxPrice = numericQuery(req.query.maxPrice);
     const rating = numericQuery(req.query.rating);
@@ -383,30 +406,35 @@ export const searchResults = async (
       ...colorMatch,
       ...priceMatch,
       ...ratingMatch,
+      ...attributeMatch,
     };
     const matchWithoutBrand = {
       ...categoryMatch,
       ...colorMatch,
       ...priceMatch,
       ...ratingMatch,
+      ...attributeMatch,
     };
     const matchWithoutPrice = {
       ...categoryMatch,
       ...brandMatch,
       ...colorMatch,
       ...ratingMatch,
+      ...attributeMatch,
     };
     const matchWithoutRating = {
       ...categoryMatch,
       ...brandMatch,
       ...colorMatch,
       ...priceMatch,
+      ...attributeMatch,
     };
     const matchWithoutColor = {
       ...categoryMatch,
       ...brandMatch,
       ...priceMatch,
       ...ratingMatch,
+      ...attributeMatch,
     };
     const matchProducts = {
       ...categoryMatch,
@@ -414,6 +442,7 @@ export const searchResults = async (
       ...colorMatch,
       ...priceMatch,
       ...ratingMatch,
+      ...attributeMatch,
     };
 
     const activeProductsMatch = {
@@ -512,7 +541,6 @@ export const searchResults = async (
                 discount: 1,
                 rating: 1,
                 reviewCount: 1,
-                attributes: 1,
                 color: { $ifNull: [{ $arrayElemAt: ["$colors", 0] }, ""] },
                 images: {
                   $map: {
@@ -589,7 +617,10 @@ export const searchResults = async (
       selectedCategories: selectedCategories.map((selectedCategory) => ({
         id: selectedCategory._id.toString(),
         name: selectedCategory.name,
-        attributes: (selectedCategory.attributes ?? [])
+        attributes: ((selectedCategory.attributes ?? []) as Record<
+          string,
+          any
+        >[])
           .filter((attribute) => attribute.filterable)
           .map((attribute) => ({
             key: attribute.key,
