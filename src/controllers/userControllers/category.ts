@@ -258,7 +258,7 @@ export const searchResults = async (
             attribute?.filterable && typeof attribute?.key === "string",
         )
         .map((attribute: Record<string, any>) => [
-          attribute.key as string,
+          (attribute.key as string).toLowerCase(),
           attribute,
         ]),
     );
@@ -281,7 +281,7 @@ export const searchResults = async (
         continue;
       }
 
-      const attrKey = rawKey;
+      const attrKey = rawKey.toLowerCase();
       const definition = filterableAttributes.get(attrKey);
       if (selectedCategories.length > 0 && !definition) continue;
       const rawValues = queryValues(paramValue).slice(0, 20);
@@ -302,7 +302,8 @@ export const searchResults = async (
       });
     }
     for (const [attrKey, range] of attributeRanges) {
-      const definition = filterableAttributes.get(attrKey);
+      const normalizedKey = attrKey.toLowerCase();
+      const definition = filterableAttributes.get(normalizedKey);
       if (definition?.type !== "number") continue;
       if (selectedCategories.length > 0 && !definition) continue;
       const valueMatch: Record<string, number> = {};
@@ -310,7 +311,9 @@ export const searchResults = async (
       if (range.max !== undefined) valueMatch.$lte = range.max;
       if (Object.keys(valueMatch).length === 0) continue;
       attributeConditions.push({
-        attributes: { $elemMatch: { key: attrKey, value: valueMatch } },
+        attributes: {
+          $elemMatch: { key: normalizedKey, value: valueMatch },
+        },
       });
     }
     const attributeMatch: Record<string, unknown> =
