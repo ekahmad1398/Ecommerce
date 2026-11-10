@@ -221,12 +221,28 @@ export const searchResults = async (req, res, next) => {
             attribute,
         ]));
         const attributeConditions = [];
+        const attributeRanges = new Map();
         for (const [paramKey, paramValue] of Object.entries(req.query)) {
             if (!paramKey.startsWith("attr_"))
                 continue;
-            const attrKey = paramKey.slice(5);
-            if (!attrKey)
+            const rawKey = paramKey.slice(5);
+            if (!rawKey)
                 continue;
+            const rangeMatch = rawKey.match(/^(.*)_(min|max)$/);
+            if (rangeMatch) {
+                const rangeKey = rangeMatch[1];
+                const bound = numericQuery(paramValue);
+                if (bound === undefined || bound < 0)
+                    continue;
+                const range = attributeRanges.get(rangeKey) ?? {};
+                if (rangeMatch[2] === "min")
+                    range.min = bound;
+                else
+                    range.max = bound;
+                attributeRanges.set(rangeKey, range);
+                continue;
+            }
+            const attrKey = rawKey;
             const definition = filterableAttributes.get(attrKey);
             if (selectedCategories.length > 0 && !definition)
                 continue;
@@ -246,6 +262,23 @@ export const searchResults = async (req, res, next) => {
                 attributes: {
                     $elemMatch: { key: attrKey, value: { $in: typedValues } },
                 },
+            });
+        }
+        for (const [attrKey, range] of attributeRanges) {
+            const definition = filterableAttributes.get(attrKey);
+            if (definition?.type !== "number")
+                continue;
+            if (selectedCategories.length > 0 && !definition)
+                continue;
+            const valueMatch = {};
+            if (range.min !== undefined)
+                valueMatch.$gte = range.min;
+            if (range.max !== undefined)
+                valueMatch.$lte = range.max;
+            if (Object.keys(valueMatch).length === 0)
+                continue;
+            attributeConditions.push({
+                attributes: { $elemMatch: { key: attrKey, value: valueMatch } },
             });
         }
         const attributeMatch = attributeConditions.length > 0 ? { $and: attributeConditions } : {};
