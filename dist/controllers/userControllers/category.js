@@ -217,7 +217,7 @@ export const searchResults = async (req, res, next) => {
         const filterableAttributes = new Map((selectedCategories[0]?.attributes ?? [])
             .filter((attribute) => attribute?.filterable && typeof attribute?.key === "string")
             .map((attribute) => [
-            attribute.key,
+            attribute.key.toLowerCase(),
             attribute,
         ]));
         const attributeConditions = [];
@@ -242,7 +242,7 @@ export const searchResults = async (req, res, next) => {
                 attributeRanges.set(rangeKey, range);
                 continue;
             }
-            const attrKey = rawKey;
+            const attrKey = rawKey.toLowerCase();
             const definition = filterableAttributes.get(attrKey);
             if (selectedCategories.length > 0 && !definition)
                 continue;
@@ -265,7 +265,8 @@ export const searchResults = async (req, res, next) => {
             });
         }
         for (const [attrKey, range] of attributeRanges) {
-            const definition = filterableAttributes.get(attrKey);
+            const normalizedKey = attrKey.toLowerCase();
+            const definition = filterableAttributes.get(normalizedKey);
             if (definition?.type !== "number")
                 continue;
             if (selectedCategories.length > 0 && !definition)
@@ -278,7 +279,9 @@ export const searchResults = async (req, res, next) => {
             if (Object.keys(valueMatch).length === 0)
                 continue;
             attributeConditions.push({
-                attributes: { $elemMatch: { key: attrKey, value: valueMatch } },
+                attributes: {
+                    $elemMatch: { key: normalizedKey, value: valueMatch },
+                },
             });
         }
         const attributeMatch = attributeConditions.length > 0 ? { $and: attributeConditions } : {};

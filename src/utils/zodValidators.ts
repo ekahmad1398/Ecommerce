@@ -109,9 +109,14 @@ export const productBodySchema = z.object({
     .transform((val) => parseInt(val, 10))
     .pipe(z.number().int().nonnegative("stock cannot be a negative value.")),
   discount: z
-    .string()
-    .transform((val) => (val ? parseFloat(val) : null))
-    .pipe(z.number().nonnegative("discount must be a postive number."))
+    .number()
+    .transform((val) => Math.round(val * 100) / 100)
+    .pipe(
+      z
+        .number()
+        .nonnegative("discount must be a postive number.")
+        .lt(100, "discount must be lower than 100."),
+    )
     .nullable()
     .optional(),
   attributes: productAttributesSchema,
@@ -158,9 +163,14 @@ export const updateproductBodySchema = z.object({
     .pipe(z.number().int().nonnegative("stock cannot be a negative value."))
     .optional(),
   discount: z
-    .string()
-    .transform((val) => (val ? parseFloat(val) : null))
-    .pipe(z.number().nonnegative("discount must be a postive number."))
+    .number()
+    .transform((val) => Math.round(val * 100) / 100)
+    .pipe(
+      z
+        .number()
+        .nonnegative("discount must be a postive number.")
+        .lt(100, "discount must be lower than 100."),
+    )
     .nullable()
     .optional(),
   attributes: productAttributesSchema,
