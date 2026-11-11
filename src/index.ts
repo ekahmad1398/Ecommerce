@@ -7,6 +7,7 @@ import vendorRoutes from "./routes/vendorRoutes.js";
 import AuthRoutes from "./routes/authroutes.js";
 import userRoutes from "./routes/userroutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import checkoutRoute from "./routes/checkoutRoute.js";
 import cron_worker from "./utils/cron_worker.js";
 import cookieParser from "cookie-parser";
 import rotateCookie from "./routes/rotateCookie.js";
@@ -49,5 +50,6 @@ app.use("/authentication", AuthRoutes);
 app.use("/user", userRoutes);
 app.use("/admin", adminRoutes);
 app.use("/api", rotateCookie);
+app.use(checkoutRoute);
 
 startServer();
