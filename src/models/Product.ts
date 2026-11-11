@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { randomBytes } from "node:crypto";
 
 const productSchema = new mongoose.Schema(
   {
@@ -115,5 +116,6 @@ export function generateSKU({
 
   return [clean(name), clean(brand), clean(color)]
     .filter(Boolean)
+    .concat(randomBytes(4).toString("hex").toUpperCase())
     .join("-");
 }

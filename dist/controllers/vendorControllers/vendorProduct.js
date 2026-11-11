@@ -147,7 +147,9 @@ const validateBrandForCategory = async (categoryId, brand, isCustomBrand, res) =
         ...(selectedCategory.brands ?? []),
         ...RESERVED_BRAND_VALUES,
     ]);
-    if (isCustomBrand || allowedBrands.has(brand))
+    if ((selectedCategory.brands ?? []).length === 0 ||
+        isCustomBrand ||
+        allowedBrands.has(brand))
         return true;
     res.status(400).json({
         success: false,
