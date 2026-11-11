@@ -109,6 +109,7 @@ export const productBodySchema = z.object({
     .transform((val) => parseInt(val, 10))
     .pipe(z.number().int().nonnegative("stock cannot be a negative value.")),
   discount: z
+    .coerce
     .number()
     .transform((val) => Math.round(val * 100) / 100)
     .pipe(
@@ -163,6 +164,7 @@ export const updateproductBodySchema = z.object({
     .pipe(z.number().int().nonnegative("stock cannot be a negative value."))
     .optional(),
   discount: z
+    .coerce
     .number()
     .transform((val) => Math.round(val * 100) / 100)
     .pipe(
