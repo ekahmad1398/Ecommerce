@@ -47,33 +47,49 @@ const resolveImageOrder = (
 };
 
 const refreshProductCount = async (categoryId: string) => {
-  const ProductCount = await Product.countDocuments({
+  let currentCategoryId: string | null = categoryId;
+  let productCount = await Product.countDocuments({
     categoryID: categoryId,
     status: "active",
     isDeleted: { $ne: true },
   });
-  const updatedCategory = await categorySchema.findByIdAndUpdate(categoryId, {
-    $set: { ProductCount },
-  }).select("parentCategory");
 
-  if (!updatedCategory?.parentCategory) return;
+  while (currentCategoryId) {
+    const updatedCategory: {
+      parentCategory?: mongoose.Types.ObjectId | null;
+    } | null = await categorySchema
+      .findByIdAndUpdate(
+        currentCategoryId,
+        { $set: { ProductCount: productCount } },
+        { new: true },
+      )
+      .select("parentCategory");
 
-  const parentId = updatedCategory.parentCategory;
-  const [parentProductCount] = await categorySchema.aggregate<{
-    ProductCount: number;
-  }>([
-    { $match: { parentCategory: parentId } },
-    {
-      $group: {
-        _id: null,
-        ProductCount: { $sum: { $ifNull: ["$ProductCount", 0] } },
+    const parentId: mongoose.Types.ObjectId | null =
+      updatedCategory?.parentCategory ?? null;
+    if (!parentId) return;
+
+    const [childProductCount] = await categorySchema.aggregate<{
+      ProductCount: number;
+    }>([
+      { $match: { parentCategory: parentId } },
+      {
+        $group: {
+          _id: null,
+          ProductCount: { $sum: { $ifNull: ["$ProductCount", 0] } },
+        },
       },
-    },
-  ]);
+    ]);
+    const parentDirectProductCount = await Product.countDocuments({
+      categoryID: parentId,
+      status: "active",
+      isDeleted: { $ne: true },
+    });
 
-  await categorySchema.findByIdAndUpdate(parentId, {
-    $set: { ProductCount: parentProductCount?.ProductCount ?? 0 },
-  });
+    currentCategoryId = parentId.toString();
+    productCount =
+      parentDirectProductCount + (childProductCount?.ProductCount ?? 0);
+  }
 };
 
 const normalizeProductStatus = (

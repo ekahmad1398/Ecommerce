@@ -217,12 +217,65 @@ export const updateCategory = async (req, res, next) => {
     }
 };
 export const getAllCategories = async (req, res, next) => {
-    const totalCategories = await category.countDocuments();
-    const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
-    const totalPages = Math.ceil(totalCategories / limit);
-    const page = Math.min(Math.max(Number(req.query.page) || 1, 1), Math.max(totalPages, 1));
-    const skip = (page - 1) * limit;
     try {
+        const totalCategories = await category.countDocuments();
+        const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
+        const totalPages = Math.ceil(totalCategories / limit);
+        const page = Math.min(Math.max(Number(req.query.page) || 1, 1), Math.max(totalPages, 1));
+        const skip = (page - 1) * limit;
+        const [categoryRows, directProductCounts] = await Promise.all([
+            category.find().select("_id parentCategory ProductCount").lean(),
+            Product.aggregate([
+                {
+                    $match: {
+                        status: "active",
+                        isDeleted: { $ne: true },
+                    },
+                },
+                { $group: { _id: "$categoryID", count: { $sum: 1 } } },
+            ]),
+        ]);
+        const categoryIdsByParent = new Map();
+        for (const row of categoryRows) {
+            const parentId = row.parentCategory?.toString();
+            if (!parentId)
+                continue;
+            const children = categoryIdsByParent.get(parentId) ?? [];
+            children.push(row._id.toString());
+            categoryIdsByParent.set(parentId, children);
+        }
+        const directCounts = new Map(directProductCounts.map(({ _id, count }) => [_id.toString(), count]));
+        const totalCounts = new Map();
+        const countForCategory = (id, visiting = new Set()) => {
+            const cachedCount = totalCounts.get(id);
+            if (cachedCount !== undefined)
+                return cachedCount;
+            if (visiting.has(id))
+                return directCounts.get(id) ?? 0;
+            visiting.add(id);
+            const count = (directCounts.get(id) ?? 0) +
+                (categoryIdsByParent.get(id) ?? []).reduce((sum, childId) => sum + countForCategory(childId, visiting), 0);
+            visiting.delete(id);
+            totalCounts.set(id, count);
+            return count;
+        };
+        const updates = categoryRows.flatMap((row) => {
+            const id = row._id.toString();
+            const ProductCount = countForCategory(id);
+            return (row.ProductCount ?? 0) === ProductCount
+                ? []
+                : [
+                    {
+                        updateOne: {
+                            filter: { _id: row._id },
+                            update: { $set: { ProductCount } },
+                        },
+                    },
+                ];
+        });
+        if (updates.length > 0) {
+            await category.bulkWrite(updates, { ordered: false });
+        }
         const categories = await category
             .find()
             .populate("parentCategory", "name")

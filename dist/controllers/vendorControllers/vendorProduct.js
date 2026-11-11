@@ -30,29 +30,37 @@ const resolveImageOrder = (rawOrder, expectedTokens) => {
     return parsedOrder;
 };
 const refreshProductCount = async (categoryId) => {
-    const ProductCount = await Product.countDocuments({
+    let currentCategoryId = categoryId;
+    let productCount = await Product.countDocuments({
         categoryID: categoryId,
         status: "active",
         isDeleted: { $ne: true },
     });
-    const updatedCategory = await categorySchema.findByIdAndUpdate(categoryId, {
-        $set: { ProductCount },
-    }).select("parentCategory");
-    if (!updatedCategory?.parentCategory)
-        return;
-    const parentId = updatedCategory.parentCategory;
-    const [parentProductCount] = await categorySchema.aggregate([
-        { $match: { parentCategory: parentId } },
-        {
-            $group: {
-                _id: null,
-                ProductCount: { $sum: { $ifNull: ["$ProductCount", 0] } },
+    while (currentCategoryId) {
+        const updatedCategory = await categorySchema
+            .findByIdAndUpdate(currentCategoryId, { $set: { ProductCount: productCount } }, { new: true })
+            .select("parentCategory");
+        const parentId = updatedCategory?.parentCategory ?? null;
+        if (!parentId)
+            return;
+        const [childProductCount] = await categorySchema.aggregate([
+            { $match: { parentCategory: parentId } },
+            {
+                $group: {
+                    _id: null,
+                    ProductCount: { $sum: { $ifNull: ["$ProductCount", 0] } },
+                },
             },
-        },
-    ]);
-    await categorySchema.findByIdAndUpdate(parentId, {
-        $set: { ProductCount: parentProductCount?.ProductCount ?? 0 },
-    });
+        ]);
+        const parentDirectProductCount = await Product.countDocuments({
+            categoryID: parentId,
+            status: "active",
+            isDeleted: { $ne: true },
+        });
+        currentCategoryId = parentId.toString();
+        productCount =
+            parentDirectProductCount + (childProductCount?.ProductCount ?? 0);
+    }
 };
 const normalizeProductStatus = (status) => (status === "archived" ? "archieved" : status);
 const isLevelThreeCategory = async (categoryId) => {

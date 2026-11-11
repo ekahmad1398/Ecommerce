@@ -30,6 +30,7 @@ const data = new mongoose.Schema({
     Image: { type: imageSchema, default: undefined },
     brands: { type: [String], trim: true, default: [] },
     ChildCount: { type: Number, default: 0 },
+    ProductCount: { type: Number, default: 0, min: 0 },
     attributes: { type: [attributeDefinitionSchema], default: [] },
 }, { timestamps: true });
 data.index({ name: 1, parentCategory: 1 }, { unique: true });
