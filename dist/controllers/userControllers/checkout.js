@@ -144,7 +144,12 @@ export const checkout = async (req, res, next) => {
         }
     }
     catch (error) {
-        await dbSession.abortTransaction();
+        try {
+            await dbSession.abortTransaction();
+        }
+        catch {
+            // transaction already committed or aborted — nothing to roll back
+        }
         dbSession.endSession();
         next(error);
     }
