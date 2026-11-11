@@ -123,8 +123,6 @@ export const checkout = async (req, res, next) => {
                 return await subOrder.save({ session: dbSession });
             });
             await Promise.all(subOrderPromises);
-            await dbSession.commitTransaction();
-            dbSession.endSession();
             const session = await stripe.checkout.sessions.create({
                 payment_method_types: ["card"],
                 line_items: lineItems,
@@ -137,6 +135,8 @@ export const checkout = async (req, res, next) => {
                     ParentorderID: String(parentOrder._id),
                 },
             });
+            await dbSession.commitTransaction();
+            dbSession.endSession();
             return res.status(201).json({
                 success: true,
                 url: session.url,
