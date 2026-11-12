@@ -1,23 +1,15 @@
-import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  productFindOne: vi.fn(),
-  productSave: vi.fn(),
-  mockAggregate: vi.fn(),
-  isValidObjectId: vi.fn(),
-  mongooseObjectID: vi.fn(),
+  aggregate: vi.fn(),
 }));
 
-vi.mock("../../models/Product.js", () => ({
-  default: {
-    aggregate: mocks.mockAggregate,
-  },
-}));
+vi.mock("../../models/Product.js", () => ({ default: {} }));
 
 vi.mock("../../models/category.js", () => ({
   default: {
-    collection: { name: "functionforname" },
-    aggregate: mocks.mockAggregate,
+    collection: { name: "categories" },
+    aggregate: mocks.aggregate,
   },
 }));
 
@@ -30,27 +22,56 @@ function makeRes() {
   return res;
 }
 
-function makeReq(body: unknown, query: {}) {
-  return { query, body } as any;
+function makeReq(query: Record<string, string>) {
+  return { query } as any;
 }
 
-describe("homeCategories", () => {
+const emptyResult = [{ metadata: [{ totalCategories: 0 }], categories: [] }];
+
+describe("getHomeCategories", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.aggregate.mockResolvedValue(emptyResult);
   });
-  it("validates if a real number is given", async () => {
+
+  it("defaults limit to 10 when a decimal is passed", async () => {
     const res = makeRes();
-    const next = vi.fn();
+
+    await getHomeCategories(makeReq({ limit: "2.1" }), res, vi.fn());
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const pipeline = mocks.aggregate.mock.calls[0][0];
+    const facetStage = pipeline.find((s: any) => s.$facet);
+    const limitStage = facetStage.$facet.categories.find(
+      (s: any) => s.$limit !== undefined,
+    );
+    expect(limitStage.$limit).toBe(10);
+  });
+
+  it("uses the requested limit when it is a valid integer", async () => {
+    const res = makeRes();
+
+    await getHomeCategories(makeReq({ limit: "25", page: "2" }), res, vi.fn());
+
+    const pipeline = mocks.aggregate.mock.calls[0][0];
+    const facetStage = pipeline.find((s: any) => s.$facet);
+    const stages = facetStage.$facet.categories;
+    const limitStage = stages.find((s: any) => s.$limit !== undefined);
+    const skipStage = stages.find((s: any) => s.$skip !== undefined);
+    expect(limitStage.$limit).toBe(25);
+    expect(skipStage.$skip).toBe(25); // page 2 → (2-1) * 25
+  });
+
+  it("returns 400 when page overflows the safe integer range", async () => {
+    const res = makeRes();
 
     await getHomeCategories(
-      makeReq(undefined, { limit: "2.1" }),
-        res,
-        next
-    )
+      makeReq({ page: "9007199254740991", limit: "50" }),
+      res,
+      vi.fn(),
+    );
 
-    expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({limit: 10})
-    )
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mocks.aggregate).not.toHaveBeenCalled();
   });
-
 });
