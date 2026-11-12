@@ -8,8 +8,7 @@ import { NextFunction, Request, Response } from "express";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 export const checkout = async (req:Request, res:Response, next:NextFunction) => {
-  const dbSession = await mongoose.startSession();
-  dbSession.startTransaction();
+  let dbSession: mongoose.ClientSession | null = null;
   try {
     const customerID = (req as any).user.id;
     const { shippingAddress, CartItems, paymentMethod } = req.body;
@@ -33,6 +32,9 @@ export const checkout = async (req:Request, res:Response, next:NextFunction) => 
         .json({ success: false, message: "please fill the requirements" });
     }
 
+    dbSession = await mongoose.startSession();
+    dbSession.startTransaction();
+
     let totalPrice = 0;
     const vendorGrouptedItems: Record<
       string,
@@ -53,6 +55,8 @@ export const checkout = async (req:Request, res:Response, next:NextFunction) => 
 
       const requestedQuantity = item.quantity;
       if (!product || product.stock < requestedQuantity) {
+        await dbSession.abortTransaction();
+        dbSession.endSession();
         return res.status(404).json({
           success: false,
           message: `insuffiecient stock or product missing.`,
@@ -177,11 +181,11 @@ export const checkout = async (req:Request, res:Response, next:NextFunction) => 
     }
   } catch (error) {
     try {
-      await dbSession.abortTransaction();
+      await dbSession?.abortTransaction();
+      dbSession?.endSession();
     } catch {
       // transaction already committed or aborted — nothing to roll back
     }
-    dbSession.endSession();
     next(error);
   }
 };
