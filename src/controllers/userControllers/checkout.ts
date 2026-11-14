@@ -65,13 +65,14 @@ export const checkout = async (req:Request, res:Response, next:NextFunction) => 
       product.stock -= requestedQuantity;
       await product.save({ session: dbSession });
 
-      const lineTotal = product.price * requestedQuantity;
+      const unitPrice = product.price * (1 - (product.discount ?? 0) / 100);
+      const lineTotal = unitPrice * requestedQuantity;
       totalPrice += lineTotal;
 
       const formattedTotalRow = {
         productID: product._id,
         quantity: requestedQuantity,
-        price: product.price,
+        price: unitPrice,
         subtotal: lineTotal,
       };
       const vendorKey = product.vendorId.toString();
@@ -85,9 +86,12 @@ export const checkout = async (req:Request, res:Response, next:NextFunction) => 
           currency: "usd",
           product_data: {
             name: product.name,
-            description: product.description,
+            images: (product.images ?? [])
+              .map((image: { publicId?: string }) => image.publicId)
+              .filter((url: string | undefined): url is string => Boolean(url))
+              .slice(0, 8),
           },
-          unit_amount: Math.round(product.price * 100),
+          unit_amount: Math.round(unitPrice * 100),
         },
         quantity: requestedQuantity,
       });

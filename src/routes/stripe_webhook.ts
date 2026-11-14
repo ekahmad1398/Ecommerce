@@ -8,7 +8,7 @@ const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 const router = express.Router();
 
 router.post(
-  "/webhook/stripe",
+  "/stripe",
   express.raw({ type: "application/json" }),
   async (req: Request, res: Response) => {
     const sig:any = req.headers["stripe-signature"];
@@ -24,6 +24,7 @@ router.post(
       return res.status(400).json({ message: "Webhook signature error." });
     }
 
+    try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
       const ParentorderID = session.metadata?.ParentorderID;
@@ -64,7 +65,7 @@ router.post(
       await Order.findByIdAndUpdate(ParentorderID, {
         paymentIntentId: session.payment_intent,
         paymentStatus: "paid",
-        paymentMethod: session.payment_method_types,
+        paymentMethod: session.payment_method_types?.[0] ?? "card",
       });
 
       const subOrders = await subOrderSchema.find({ ParentorderID });
@@ -83,6 +84,9 @@ router.post(
         subOrder.status = "processing";
         await subOrder.save();
       }
+    }
+    } catch (error) {
+      console.log("webhook handler error:", error);
     }
     res.json({ received: true });
   },
