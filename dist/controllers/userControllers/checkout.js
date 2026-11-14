@@ -130,8 +130,8 @@ export const checkout = async (req, res, next) => {
                 payment_method_types: ["card"],
                 line_items: lineItems,
                 mode: "payment",
-                success_url: `/success?sessiont_id={checkout_session}`,
-                cancel_url: `/success?sessiont_id={checkout_session}`,
+                success_url: `${env.Frontend_URL}/orders?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+                cancel_url: `${env.Frontend_URL}/cart`,
                 shipping_address_collection: { allowed_countries: ["US", "CA"] },
                 metadata: {
                     customerId: customerID,
