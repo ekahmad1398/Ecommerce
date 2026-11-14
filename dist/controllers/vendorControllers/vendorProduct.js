@@ -38,7 +38,7 @@ const refreshProductCount = async (categoryId) => {
     });
     while (currentCategoryId) {
         const updatedCategory = await categorySchema
-            .findByIdAndUpdate(currentCategoryId, { $set: { ProductCount: productCount } }, { new: true })
+            .findByIdAndUpdate(currentCategoryId, { $set: { ProductCount: productCount } }, { returnDocument: "after" })
             .select("parentCategory");
         const parentId = updatedCategory?.parentCategory ?? null;
         if (!parentId)

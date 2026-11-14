@@ -46,8 +46,8 @@ export const checkout = async (req, res, next) => {
             }
             product.stock -= requestedQuantity;
             await product.save({ session: dbSession });
-            const unitPrice = product.price * (1 - (product.discount ?? 0) / 100);
-            const lineTotal = unitPrice * requestedQuantity;
+            const unitPrice = Number((product.price * (1 - (product.discount ?? 0) / 100)).toFixed(2));
+            const lineTotal = Number((unitPrice * requestedQuantity).toFixed(2));
             totalPrice += lineTotal;
             const formattedTotalRow = {
                 productID: product._id,
@@ -75,6 +75,7 @@ export const checkout = async (req, res, next) => {
                 quantity: requestedQuantity,
             });
         }
+        totalPrice = Number(totalPrice.toFixed(2));
         if (paymentMethod === "COD") {
             const parentOrder = new Order({
                 customerID,

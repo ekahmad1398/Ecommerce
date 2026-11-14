@@ -61,7 +61,7 @@ const refreshProductCount = async (categoryId: string) => {
       .findByIdAndUpdate(
         currentCategoryId,
         { $set: { ProductCount: productCount } },
-        { new: true },
+        { returnDocument: "after" },
       )
       .select("parentCategory");
 
