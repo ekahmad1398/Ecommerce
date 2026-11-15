@@ -90,6 +90,7 @@ export const checkout = async (req, res, next) => {
                 const subtotal = itemList.reduce((sum, i) => sum + i.subtotal, 0);
                 const subOrder = new subOrderItems({
                     ParentorderID: parentOrder._id,
+                    customerID,
                     vendorID,
                     items: itemList,
                     platformComissionCut: Number((Number(subtotal) * 0.1).toFixed(2)),
@@ -121,6 +122,7 @@ export const checkout = async (req, res, next) => {
                 const subtotal = itemList.reduce((sum, i) => sum + i.subtotal, 0);
                 const subOrder = new subOrderItems({
                     ParentorderID: String(parentOrder._id),
+                    customerID,
                     vendorID,
                     items: itemList,
                     platformComissionCut: 0,

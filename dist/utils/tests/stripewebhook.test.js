@@ -76,7 +76,7 @@ describe("stripe webhook", () => {
         expect(res.status).toBe(200);
         expect(mocks.orderFindByIdAndUpdate).toHaveBeenCalledWith("order-1", expect.objectContaining({ paymentStatus: "paid" }));
         expect(fakeSubOrder.status).toBe("processing");
-        expect(mocks.subOrderSave).toHaveBeenCalled();
+        expect(mocks.subOrderSave).toHaveBeenCalledOnce();
         expect(fakeSubOrder.platformComissionCut).toBe(4.85);
         expect(fakeSubOrder.vendorNetEarned).toBe(43.65);
     });

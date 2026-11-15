@@ -13,7 +13,6 @@ import cookieParser from "cookie-parser";
 import rotateCookie from "./routes/rotateCookie.js";
 import cors from "cors";
 import env from "./config.js";
-
 const allowedOrigins = ["http://100.97.73.17:3000", "https://marketly-five-rho.vercel.app"];
 
 const app = express();

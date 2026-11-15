@@ -6,6 +6,12 @@ const orderItemSchema = new mongoose.Schema({
         required: true,
         index: true,
     },
+    customerID: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+        index: true,
+    },
     vendorID: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "vendor",

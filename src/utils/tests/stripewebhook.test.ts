@@ -93,7 +93,7 @@ describe("stripe webhook", () => {
       expect.objectContaining({ paymentStatus: "paid" }),
     );
     expect(fakeSubOrder.status).toBe("processing");
-    expect(mocks.subOrderSave).toHaveBeenCalled();
+    expect(mocks.subOrderSave).toHaveBeenCalledOnce();
     expect(fakeSubOrder.platformComissionCut).toBe(4.85);
     expect(fakeSubOrder.vendorNetEarned).toBe(43.65);
   });

@@ -2,6 +2,48 @@ import order from "../../models/Order.js";
 import orderitems from "../../models/orderItems.js";
 import type { Response, Request, NextFunction } from "express";
 
+// One-off migration endpoint: copies customerID from parent orders
+// onto suborders created before the field existed.
+export const backfillSubOrderCustomerIds = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const missing = await orderitems
+      .find({ customerID: { $exists: false } })
+      .select("ParentorderID")
+      .lean();
+
+    let updated = 0;
+    let skipped = 0;
+    for (const subOrder of missing) {
+      const parent = await order
+        .findById(subOrder.ParentorderID)
+        .select("customerID")
+        .lean();
+      if (!parent?.customerID) {
+        skipped++;
+        continue;
+      }
+      await orderitems.updateOne(
+        { _id: subOrder._id },
+        { $set: { customerID: parent.customerID } },
+      );
+      updated++;
+    }
+
+    res.status(200).json({
+      success: true,
+      found: missing.length,
+      updated,
+      skipped,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getAdminOrderFeed = async (
   req: Request,
   res: Response,
