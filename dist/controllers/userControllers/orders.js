@@ -38,7 +38,13 @@ export const getUserOrders = async (req, res, next) => {
         const { selectedYear, match: yearMatch } = yearRange(req);
         const [orderResult, statsResult] = await Promise.all([
             Order.aggregate([
-                { $match: { customerID: customerOid, ...yearMatch } },
+                {
+                    $match: {
+                        customerID: customerOid,
+                        paymentStatus: { $ne: "pending" },
+                        ...yearMatch,
+                    },
+                },
                 {
                     $facet: {
                         metadata: [{ $count: "total" }],
@@ -62,6 +68,7 @@ export const getUserOrders = async (req, res, next) => {
                 {
                     $match: {
                         customerID: customerOid,
+                        status: { $ne: "pending" },
                         ...yearMatch,
                     },
                 },
@@ -88,7 +95,7 @@ export const getUserOrders = async (req, res, next) => {
                                             $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0],
                                         },
                                     },
-                                    delievered: {
+                                    delivered: {
                                         $sum: {
                                             $cond: [{ $eq: ["$status", "delivered"] }, 1, 0],
                                         },
@@ -129,6 +136,7 @@ export const getUserOrders = async (req, res, next) => {
             counts: {
                 notYetShipped: summary?.notYetShipped ?? 0,
                 cancelled: summary?.cancelled ?? 0,
+                delivered: summary?.delivered ?? 0,
             },
             orders,
         });
