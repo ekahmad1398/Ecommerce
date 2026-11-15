@@ -62,6 +62,17 @@ export const checkout = async (req:Request, res:Response, next:NextFunction) => 
           message: `insuffiecient stock or product missing.`,
         });
       }
+
+      const buyerVendorID = (req as any).user.vendorID;
+      if (buyerVendorID && product.vendorId?.toString() === buyerVendorID) {
+        await dbSession.abortTransaction();
+        dbSession.endSession();
+        return res.status(403).json({
+          success: false,
+          message: "You cannot purchase products from your own store.",
+        });
+      }
+
       product.stock -= requestedQuantity;
       await product.save({ session: dbSession });
 

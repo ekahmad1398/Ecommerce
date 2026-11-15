@@ -44,6 +44,15 @@ export const checkout = async (req, res, next) => {
                     message: `insuffiecient stock or product missing.`,
                 });
             }
+            const buyerVendorID = req.user.vendorID;
+            if (buyerVendorID && product.vendorId?.toString() === buyerVendorID) {
+                await dbSession.abortTransaction();
+                dbSession.endSession();
+                return res.status(403).json({
+                    success: false,
+                    message: "You cannot purchase products from your own store.",
+                });
+            }
             product.stock -= requestedQuantity;
             await product.save({ session: dbSession });
             const unitPrice = Number((product.price * (1 - (product.discount ?? 0) / 100)).toFixed(2));
