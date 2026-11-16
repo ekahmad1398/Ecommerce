@@ -80,7 +80,7 @@ export const topRated = async (
             as: "parent",
           },
         },
-        { $match: { "parent.0.parentCategory": { $ne: null } } },
+        { $match: { "parent.0.parentCategory": { $type: "objectId" } } },
         { $sort: { name: 1 } },
         {
           $project: {

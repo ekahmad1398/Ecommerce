@@ -34,41 +34,43 @@ const findOwnedReview = async (reviewId, customerID) => {
 };
 export const getProductReviews = async (req, res, next) => {
     try {
-        const { productId } = req.params;
+        const productId = String(req.params.productId);
         if (!mongoose.isValidObjectId(productId)) {
             return res.status(400).json({ success: false, message: "Invalid product ID." });
         }
-        const requestedLimit = Number(req.query.limit);
         const requestedPage = Number(req.query.page);
-        const limit = Number.isSafeInteger(requestedLimit) && requestedLimit > 0
-            ? Math.min(requestedLimit, MAX_LIMIT)
-            : DEFAULT_LIMIT;
+        const limit = DEFAULT_LIMIT;
         const page = Number.isSafeInteger(requestedPage) && requestedPage > 0
             ? requestedPage
             : 1;
-        const product = await ProductSchema.findOne({
-            _id: productId,
-            status: "active",
-            isDeleted: { $ne: true },
-        })
-            .select("rating reviewCount")
-            .lean();
-        if (!product) {
-            return res.status(404).json({ success: false, message: "Product not found." });
-        }
-        const [reviews, total] = await Promise.all([
-            Review.find({ product: productId })
-                .sort({ createdAt: -1 })
-                .skip((page - 1) * limit)
-                .limit(limit)
-                .populate("user", "name")
-                .lean(),
-            Review.countDocuments({ product: productId }),
+        const [facet] = await Review.aggregate([
+            { $match: { product: new mongoose.Types.ObjectId(productId) } },
+            {
+                $facet: {
+                    reviews: [
+                        { $sort: { createdAt: -1 } },
+                        { $skip: (page - 1) * limit },
+                        { $limit: limit },
+                        {
+                            $lookup: {
+                                from: "users",
+                                localField: "user",
+                                foreignField: "_id",
+                                as: "user",
+                                pipeline: [{ $project: { name: 1 } }],
+                            },
+                        },
+                        { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+                    ],
+                    total: [{ $count: "count" }],
+                },
+            },
         ]);
+        const reviews = facet?.reviews ?? [];
+        const total = facet?.total?.[0]?.count ?? 0;
         res.status(200).json({
             success: true,
-            rating: product.rating,
-            reviewCount: product.reviewCount,
+            viewerId: req.user.id,
             currentPage: page,
             totalPages: Math.max(1, Math.ceil(total / limit)),
             total,

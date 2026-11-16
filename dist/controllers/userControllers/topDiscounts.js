@@ -60,7 +60,7 @@ export const topDiscounts = async (req, res, next) => {
                         as: "parent",
                     },
                 },
-                { $match: { "parent.0.parentCategory": { $ne: null } } },
+                { $match: { "parent.0.parentCategory": { $type: "objectId" } } },
                 { $sort: { name: 1 } },
                 {
                     $project: {
