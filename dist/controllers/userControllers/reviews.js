@@ -4,6 +4,34 @@ import ProductSchema from "../../models/Product.js";
 import subOrderItems from "../../models/orderItems.js";
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
+const isValidRating = (rating) => Number.isInteger(rating) && rating >= 1 && rating <= 5;
+const isValidComment = (comment) => comment === undefined ||
+    (typeof comment === "string" && comment.length <= 1000);
+// recalculate aggregate so rating can't drift; zero reviews -> rating 0
+const syncProductRating = async (productId) => {
+    const [stats] = await Review.aggregate([
+        { $match: { product: new mongoose.Types.ObjectId(productId) } },
+        {
+            $group: {
+                _id: null,
+                avgRating: { $avg: "$rating" },
+                count: { $sum: 1 },
+            },
+        },
+    ]);
+    await ProductSchema.updateOne({ _id: productId }, {
+        rating: Number((stats?.avgRating ?? 0).toFixed(1)),
+        reviewCount: stats?.count ?? 0,
+    });
+};
+const findOwnedReview = async (reviewId, customerID) => {
+    if (!mongoose.isValidObjectId(reviewId))
+        return null;
+    const review = await Review.findById(reviewId).select("user product").lean();
+    if (!review || review.user.toString() !== customerID)
+        return null;
+    return review;
+};
 export const getProductReviews = async (req, res, next) => {
     try {
         const { productId } = req.params;
@@ -58,10 +86,10 @@ export const createReview = async (req, res, next) => {
         if (!mongoose.isValidObjectId(productID)) {
             return res.status(400).json({ success: false, message: "Invalid product ID." });
         }
-        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+        if (!isValidRating(rating)) {
             return res.status(400).json({ success: false, message: "Rating must be a whole number between 1 and 5." });
         }
-        if (comment !== undefined && (typeof comment !== "string" || comment.length > 1000)) {
+        if (!isValidComment(comment)) {
             return res.status(400).json({ success: false, message: "Comment must be text under 1000 characters." });
         }
         const product = await ProductSchema.findOne({
@@ -83,27 +111,24 @@ export const createReview = async (req, res, next) => {
                 message: "You can only review products you have purchased.",
             });
         }
+        const existing = await Review.findOne({
+            user: customerID,
+            product: productID,
+        }).select("_id");
+        if (existing) {
+            return res.status(409).json({
+                success: false,
+                message: "You have already reviewed this product.",
+                reviewId: existing._id.toString(),
+            });
+        }
         const review = await Review.create({
             user: customerID,
             product: productID,
             rating,
             comment: comment ?? "",
         });
-        // recalculate aggregate so rating can't drift
-        const [stats] = await Review.aggregate([
-            { $match: { product: new mongoose.Types.ObjectId(productID) } },
-            {
-                $group: {
-                    _id: null,
-                    avgRating: { $avg: "$rating" },
-                    count: { $sum: 1 },
-                },
-            },
-        ]);
-        await ProductSchema.updateOne({ _id: productID }, {
-            rating: Number((stats?.avgRating ?? 0).toFixed(1)),
-            reviewCount: stats?.count ?? 0,
-        });
+        await syncProductRating(productID);
         res.status(201).json({ success: true, review });
     }
     catch (error) {
@@ -113,6 +138,45 @@ export const createReview = async (req, res, next) => {
                 message: "You have already reviewed this product.",
             });
         }
+        next(error);
+    }
+};
+export const updateReview = async (req, res, next) => {
+    try {
+        const customerID = req.user.id;
+        const reviewId = String(req.params.reviewId);
+        const { rating, comment } = req.body ?? {};
+        if (!isValidRating(rating)) {
+            return res.status(400).json({ success: false, message: "Rating must be a whole number between 1 and 5." });
+        }
+        if (!isValidComment(comment)) {
+            return res.status(400).json({ success: false, message: "Comment must be text under 1000 characters." });
+        }
+        const owned = await findOwnedReview(reviewId, customerID);
+        if (!owned) {
+            return res.status(404).json({ success: false, message: "Review not found." });
+        }
+        const review = await Review.findByIdAndUpdate(reviewId, { rating, comment: comment ?? "" }, { returnDocument: "after" }).lean();
+        await syncProductRating(owned.product.toString());
+        res.status(200).json({ success: true, review });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+export const deleteReview = async (req, res, next) => {
+    try {
+        const customerID = req.user.id;
+        const reviewId = String(req.params.reviewId);
+        const owned = await findOwnedReview(reviewId, customerID);
+        if (!owned) {
+            return res.status(404).json({ success: false, message: "Review not found." });
+        }
+        await Review.findByIdAndDelete(reviewId);
+        await syncProductRating(owned.product.toString());
+        res.status(200).json({ success: true });
+    }
+    catch (error) {
         next(error);
     }
 };

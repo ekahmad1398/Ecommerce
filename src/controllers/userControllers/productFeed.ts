@@ -46,6 +46,7 @@ export const specificProduct = async (
       id: product._id,
       name: product.name,
       sku: product.sku,
+      rating:product.rating,
       price: product.price,
       stock: product.stock,
       description: product.description,

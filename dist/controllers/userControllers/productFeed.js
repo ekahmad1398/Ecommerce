@@ -24,6 +24,7 @@ export const specificProduct = async (req, res, next) => {
             id: product._id,
             name: product.name,
             sku: product.sku,
+            rating: product.rating,
             price: product.price,
             stock: product.stock,
             description: product.description,
