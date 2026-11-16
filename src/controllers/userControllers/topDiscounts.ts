@@ -64,7 +64,35 @@ export const topDiscounts = async (
     const facetMatch: Record<string, unknown> = { ...eligibleMatch };
     if (selectedCategoryId) facetMatch.categoryID = selectedCategoryId;
 
-    const [levelThreeCategories, [result]] = await Promise.all([
+    const siblingCategoriesPromise = selectedCategoryId
+      ? category.aggregate([
+          { $match: { _id: selectedCategoryId } },
+          {
+            $lookup: {
+              from: collectionName,
+              let: { parentId: "$parentCategory" },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: { $eq: ["$parentCategory", "$$parentId"] },
+                  },
+                },
+                { $sort: { name: 1 } },
+                {
+                  $project: {
+                    _id: 0,
+                    id: { $toString: "$_id" },
+                    name: 1,
+                  },
+                },
+              ],
+              as: "siblings",
+            },
+          },
+        ])
+      : Promise.resolve([]);
+
+    const [levelThreeCategories, [result], siblingRows] = await Promise.all([
       category.aggregate([
         { $match: { parentCategory: { $ne: null } } },
         {
@@ -162,12 +190,17 @@ export const topDiscounts = async (
           },
         },
       ]),
+      siblingCategoriesPromise,
     ]);
 
     const departments = levelThreeCategories.map((entry) => ({
       id: entry.id as string,
       name: entry.name as string,
     }));
+
+    const siblings =
+      (siblingRows[0] as { siblings?: { id: string; name: string }[] } | undefined)
+        ?.siblings ?? [];
 
     const totalProducts = result?.total?.[0]?.totalProducts ?? 0;
 
@@ -179,6 +212,7 @@ export const topDiscounts = async (
       totalProducts,
       products: result?.products ?? [],
       departments,
+      siblings,
       brands: result?.brands ?? [],
     });
   } catch (error) {

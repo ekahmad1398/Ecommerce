@@ -54,7 +54,34 @@ export const topRated = async (req, res, next) => {
         const facetMatch = { ...eligibleMatch };
         if (selectedCategoryId)
             facetMatch.categoryID = selectedCategoryId;
-        const [levelThreeCategories, [result]] = await Promise.all([
+        const siblingCategoriesPromise = selectedCategoryId
+            ? category.aggregate([
+                { $match: { _id: selectedCategoryId } },
+                {
+                    $lookup: {
+                        from: collectionName,
+                        let: { parentId: "$parentCategory" },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: { $eq: ["$parentCategory", "$$parentId"] },
+                                },
+                            },
+                            { $sort: { name: 1 } },
+                            {
+                                $project: {
+                                    _id: 0,
+                                    id: { $toString: "$_id" },
+                                    name: 1,
+                                },
+                            },
+                        ],
+                        as: "siblings",
+                    },
+                },
+            ])
+            : Promise.resolve([]);
+        const [levelThreeCategories, [result], siblingRows] = await Promise.all([
             category.aggregate([
                 { $match: { parentCategory: { $ne: null } } },
                 {
@@ -156,11 +183,14 @@ export const topRated = async (req, res, next) => {
                     },
                 },
             ]),
+            siblingCategoriesPromise,
         ]);
         const departments = levelThreeCategories.map((entry) => ({
             id: entry.id,
             name: entry.name,
         }));
+        const siblings = siblingRows[0]
+            ?.siblings ?? [];
         const totalProducts = result?.total?.[0]?.totalProducts ?? 0;
         res.status(200).json({
             success: true,
@@ -170,6 +200,7 @@ export const topRated = async (req, res, next) => {
             totalProducts,
             products: result?.products ?? [],
             departments,
+            siblings,
             brands: result?.brands ?? [],
         });
     }
