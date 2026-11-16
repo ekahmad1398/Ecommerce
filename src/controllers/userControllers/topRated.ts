@@ -7,8 +7,6 @@ const DEFAULT_LIMIT = 30;
 const MAX_LIMIT = 50;
 const DEFAULT_MIN_RATING = 4;
 const MIN_REVIEW_COUNT = 3;
-// Bayesian average: (rating * reviews + priorWeight * priorMean) / (reviews + priorWeight)
-// pulls products with few reviews toward ~3.5 so one great review can't top the list
 const PRIOR_WEIGHT = 10;
 const PRIOR_MEAN = 3.5;
 
@@ -25,7 +23,9 @@ export const topRated = async (
 ) => {
   try {
     const brand =
-      typeof req.query.brand === "string" ? req.query.brand.trim().slice(0, 100) : "";
+      typeof req.query.brand === "string"
+        ? req.query.brand.trim().slice(0, 100)
+        : "";
 
     const categoryValue =
       typeof req.query.category === "string" ? req.query.category.trim() : "";
@@ -62,68 +62,37 @@ export const topRated = async (
       reviewCount: { $gte: MIN_REVIEW_COUNT },
     };
 
-    const levelThreeCategories = await category.aggregate([
-      { $match: { parentCategory: { $ne: null } } },
-      {
-        $lookup: {
-          from: collectionName,
-          localField: "parentCategory",
-          foreignField: "_id",
-          as: "parent",
-        },
-      },
-      { $match: { "parent.0.parentCategory": { $ne: null } } },
-      { $sort: { name: 1 } },
-      {
-        $project: {
-          _id: 0,
-          id: { $toString: "$_id" },
-          name: 1,
-        },
-      },
-    ]);
-
-    // one pass over eligible products -> per-category counts, merged in JS
-    const categoryCounts = await ProductSchema.aggregate([
-      { $match: eligibleMatch },
-      { $group: { _id: "$categoryID", count: { $sum: 1 } } },
-    ]);
-    const countByCategory = new Map(
-      categoryCounts.map((row) => [String(row._id), row.count as number]),
-    );
-    const departments = levelThreeCategories.map((entry) => ({
-      id: entry.id as string,
-      name: entry.name as string,
-      count: countByCategory.get(entry.id) ?? 0,
-    }));
-
-    // resolve selected level-3 category -> itself + any children, once
-    let categoryIds: mongoose.Types.ObjectId[] | null = null;
-    if (selectedCategoryId) {
-      const children = await category
-        .find({ parentCategory: selectedCategoryId })
-        .select("_id")
-        .lean();
-      categoryIds = [
-        selectedCategoryId,
-        ...children.map((c) => c._id as mongoose.Types.ObjectId),
-      ];
-    }
-
-    // full product filter (products + total facets only)
     const productMatch: Record<string, unknown> = { ...eligibleMatch };
-    if (categoryIds) productMatch.categoryID = { $in: categoryIds };
+    if (selectedCategoryId) productMatch.categoryID = selectedCategoryId;
     if (brand) productMatch.brand = brand;
 
-    // facet filters: scoped to the selected category but NOT the selected
-    // brand, so the brand list doesn't collapse to the chosen brand
     const facetMatch: Record<string, unknown> = { ...eligibleMatch };
-    if (categoryIds) facetMatch.categoryID = { $in: categoryIds };
+    if (selectedCategoryId) facetMatch.categoryID = selectedCategoryId;
 
-    const [result] = await ProductSchema.aggregate([
+    const [levelThreeCategories, [result]] = await Promise.all([
+      category.aggregate([
+        { $match: { parentCategory: { $ne: null } } },
+        {
+          $lookup: {
+            from: collectionName,
+            localField: "parentCategory",
+            foreignField: "_id",
+            as: "parent",
+          },
+        },
+        { $match: { "parent.0.parentCategory": { $ne: null } } },
+        { $sort: { name: 1 } },
+        {
+          $project: {
+            _id: 0,
+            id: { $toString: "$_id" },
+            name: 1,
+          },
+        },
+      ]),
+      ProductSchema.aggregate([
       {
         $facet: {
-          // cheap path: filter + sort + paginate FIRST, lookup only the page
           products: [
             { $match: productMatch },
             {
@@ -182,7 +151,12 @@ export const topRated = async (
           ],
           total: [{ $match: productMatch }, { $count: "totalProducts" }],
           brands: [
-            { $match: { ...facetMatch, brand: { $exists: true, $nin: [null, ""] } } },
+            {
+              $match: {
+                ...facetMatch,
+                brand: { $exists: true, $nin: [null, ""] },
+              },
+            },
             { $group: { _id: "$brand", count: { $sum: 1 } } },
             { $sort: { count: -1, _id: 1 } },
             { $limit: 50 },
@@ -196,7 +170,13 @@ export const topRated = async (
           ],
         },
       },
+      ]),
     ]);
+
+    const departments = levelThreeCategories.map((entry) => ({
+      id: entry.id as string,
+      name: entry.name as string,
+    }));
 
     const totalProducts = result?.total?.[0]?.totalProducts ?? 0;
 
