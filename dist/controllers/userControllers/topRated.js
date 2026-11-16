@@ -144,7 +144,7 @@ export const topRated = async (req, res, next) => {
                             },
                             { $group: { _id: "$brand", count: { $sum: 1 } } },
                             { $sort: { count: -1, _id: 1 } },
-                            { $limit: 50 },
+                            { $limit: 20 },
                             {
                                 $project: {
                                     _id: 0,
