@@ -43,6 +43,7 @@ export const checkout = async (req:Request, res:Response, next:NextFunction) => 
         quantity: number;
         price: number;
         subtotal: number;
+        color?: string;
       }>
     > = {};
     const lineItems = [];
@@ -87,6 +88,10 @@ export const checkout = async (req:Request, res:Response, next:NextFunction) => 
         quantity: requestedQuantity,
         price: unitPrice,
         subtotal: lineTotal,
+        color:
+          typeof item.color === "string" && item.color.trim()
+            ? item.color.trim().slice(0, 80)
+            : "",
       };
       const vendorKey = product.vendorId.toString();
       if (!vendorGrouptedItems[vendorKey]) {
