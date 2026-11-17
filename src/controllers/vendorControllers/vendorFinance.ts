@@ -143,12 +143,13 @@ export const getVendorFinancialStatus = async (
       },
     ]);
 
-    const result = SalesData[0] ?? { LastpaidOrders: [], totalsOfSales: [] };
+    const result = SalesData[0] ?? { totalcurrentSales: [], totalsPreviousSales: [], LastpaidOrders: [] };
 
     res.status(200).json({
       success: true,
-      LastOrders: result.LastpaidOrders,
-      data: result.totalsOfSales,
+      lastPaidOrders: result.LastpaidOrders,
+      current: result.totalcurrentSales,
+      previous: result.totalsPreviousSales,
     });
   } catch (error) {
     next(error);

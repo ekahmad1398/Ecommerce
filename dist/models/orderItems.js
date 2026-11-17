@@ -39,7 +39,7 @@ const orderItemSchema = new mongoose.Schema({
         default: "pending",
     },
     isPaidOutToVendor: { type: Boolean, default: false },
-    payoutReleaseDate: { type: Date, default: Date.now() + 10 * 24 * 60 },
+    payoutReleaseDate: { type: Date, default: () => Date.now() + 10 * 24 * 60 * 60 * 1000 },
 }, { timestamps: true });
 orderItemSchema.index({ status: 1, "items.productID": 1 });
 orderItemSchema.index({ createAt: 1 }, { expireAfterSeconds: 3000, partialFilterExpression: { status: "pending" } });

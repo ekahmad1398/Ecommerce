@@ -27,5 +27,5 @@ router.get("/getProfile", getVendorProfile);
 router.put("/updateProfile", upload.single("companyimage"), updateVendorProfile);
 router.put("/changePassword", changeVendorPassword);
 router.get("/vendorOrder", getVendorsOrders);
-router.put("/UpdateOrderStatus", UpdateSubOrderStatus);
+router.put("/UpdateOrderStatus/:id", UpdateSubOrderStatus);
 export default router;
