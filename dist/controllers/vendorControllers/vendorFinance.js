@@ -120,7 +120,7 @@ export const getVendorFinancialStatus = async (req, res, next) => {
                         },
                     ],
                     LastpaidOrders: [
-                        { $match: { isPaidOutToVendor: true } },
+                        { $match: { payoutReleaseDate: { $lte: Date.now() } } },
                         { $sort: { createdAt: -1 } },
                         { $limit: 15 },
                         {
