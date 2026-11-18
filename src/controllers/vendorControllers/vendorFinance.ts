@@ -122,6 +122,7 @@ export const getVendorFinancialStatus = async (
             vendorID: vendorObjectId,
             payoutReleaseDate: { $lte: new Date() },
             isPaidOutToVendor: { $ne: true },
+            // status: "delivered",
           },
         },
         { $sort: { createdAt: -1 } },
@@ -135,12 +136,6 @@ export const getVendorFinancialStatus = async (
           },
         },
         {
-          $unwind: {
-            path: "$productData",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
           $project: {
             items: 1,
             vendorNetEarned: 1,
@@ -149,7 +144,7 @@ export const getVendorFinancialStatus = async (
             createdAt: 1,
             updatedAt: 1,
             payoutReleaseDate: 1,
-            "productData.name": 1,
+            productNames: "$productData.name",
             platformComissionCut: 1,
           },
         },
