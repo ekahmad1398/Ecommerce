@@ -86,7 +86,7 @@ export const UpdateSubOrderStatus = async (req, res, next) => {
         const vendorID = req.user.vendorID;
         const productID = req.params.id;
         const status = req.body.status;
-        const allowedStatus = ["processing", "shipped", "delivered", "cancelled"];
+        const allowedStatus = ["processing", "shipped", "delivered"];
         if (!allowedStatus.includes(status)) {
             return res
                 .status(400)
