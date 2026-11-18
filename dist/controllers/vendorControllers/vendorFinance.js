@@ -77,7 +77,7 @@ export const getVendorFinancialStatus = async (req, res, next) => {
                                 totalNetEarnings: { $sum: "$vendorNetEarned" },
                                 totalOrders: { $sum: 1 },
                                 pendingOrders: {
-                                    $sum: { $cond: [{ $eq: ["$status", "shipped"] }, 1, 0] },
+                                    $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] },
                                 },
                                 processingOrders: {
                                     $sum: { $cond: [{ $eq: ["$status", "processing"] }, 1, 0] },
@@ -104,7 +104,7 @@ export const getVendorFinancialStatus = async (req, res, next) => {
                                 totalNetEarnings: { $sum: "$vendorNetEarned" },
                                 totalOrders: { $sum: 1 },
                                 pendingOrders: {
-                                    $sum: { $cond: [{ $eq: ["$status", "shipped"] }, 1, 0] },
+                                    $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] },
                                 },
                                 processingOrders: {
                                     $sum: { $cond: [{ $eq: ["$status", "processing"] }, 1, 0] },
@@ -130,14 +130,20 @@ export const getVendorFinancialStatus = async (req, res, next) => {
                                 as: "productData",
                             },
                         },
-                        { $unwind: "$productData" },
+                        {
+                            $unwind: {
+                                path: "$productData",
+                                preserveNullAndEmptyArrays: true,
+                            },
+                        },
                         {
                             $project: {
                                 items: 1,
                                 vendorNetEarned: 1,
                                 isPaidOutToVendor: 1,
                                 subOrderTotal: 1,
-                                updateAt: 1,
+                                createdAt: 1,
+                                updatedAt: 1,
                                 "productData.name": 1,
                                 platformComissionCut: 1,
                             },
