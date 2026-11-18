@@ -132,7 +132,7 @@ export const getVendorFinancialStatus = async (
             },
           ],
           LastpaidOrders: [
-            { $match: { payoutReleaseDate: { $lte: Date.now()} } },
+            { $match: { payoutReleaseDate: { $lte: Date.now()}, isPaidOutToVendor:false } },
             { $sort: { createdAt: -1 } },
             { $limit: 15 },
             {
@@ -157,6 +157,7 @@ export const getVendorFinancialStatus = async (
                 subOrderTotal: 1,
                 createdAt: 1,
                 updatedAt: 1,
+                payoutReleaseDate: 1,
                 "productData.name": 1,
                 platformComissionCut: 1,
               },
