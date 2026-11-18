@@ -28,13 +28,13 @@ export const registerVendor = async (req, res, next) => {
         }
         const existingUser = await Vendor.findOne({ userid: userId });
         if (existingUser) {
-            res
+            return res
                 .status(400)
                 .json({ success: false, message: "Vendor already exists." });
         }
         const companyImage = req.file;
         if (!companyImage) {
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
                 message: "at least one company image is required for trusting issues.",
             });

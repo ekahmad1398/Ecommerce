@@ -6,7 +6,17 @@ export const getVendorFinancialStatus = async (req, res, next) => {
         const startDate = new Date();
         const previousStartDate = new Date();
         let GroupStageID = {};
-        if (range === "6Months") {
+        if (range === "7Days" || range === "30Days" || range === "90Days") {
+            const days = range === "7Days" ? 7 : range === "30Days" ? 30 : 90;
+            startDate.setDate(startDate.getDate() - days);
+            previousStartDate.setDate(previousStartDate.getDate() - days * 2);
+            GroupStageID = {
+                year: { $year: "$createdAt" },
+                month: { $month: "$createdAt" },
+                day: { $dayOfMonth: "$createdAt" },
+            };
+        }
+        else if (range === "6Months") {
             startDate.setMonth(startDate.getMonth() - 6);
             previousStartDate.setMonth(previousStartDate.getMonth() - 12);
             GroupStageID = {
@@ -41,8 +51,8 @@ export const getVendorFinancialStatus = async (req, res, next) => {
             };
         }
         else {
-            previousStartDate.setFullYear(1970);
-            startDate.setFullYear(1970);
+            previousStartDate.setFullYear(2026);
+            startDate.setFullYear(2026);
             GroupStageID = {};
         }
         const SalesData = await suborder.aggregate([
