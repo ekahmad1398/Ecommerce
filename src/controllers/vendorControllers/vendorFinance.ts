@@ -92,9 +92,6 @@ export const getVendorFinancialStatus = async (
                 totalGrossSales: { $sum: "$subOrderTotal" },
                 totalNetEarnings: { $sum: "$vendorNetEarned" },
                 totalOrders: { $sum: 1 },
-                pendingOrders: {
-                  $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] },
-                },
                 processingOrders: {
                   $sum: { $cond: [{ $eq: ["$status", "processing"] }, 1, 0] },
                 },
