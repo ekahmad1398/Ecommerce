@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import mongoose from "mongoose";
 import suborder from "../../models/orderItems.js";
 
 
@@ -9,6 +10,9 @@ export const getVendorFinancialStatus = async (
 ) => {
   try {
     const vendorID = (req as any).user.vendorID;
+    const vendorObjectId = mongoose.isValidObjectId(String(vendorID))
+      ? new mongoose.Types.ObjectId(String(vendorID))
+      : vendorID;
     const range =
       (req.query.range as
         | "7Days"
@@ -70,7 +74,7 @@ export const getVendorFinancialStatus = async (
     const SalesData = await suborder.aggregate([
       {
         $match: {
-          vendorID,
+          vendorID: vendorObjectId,
           createdAt: { $gte: previousStartDate },
         },
       },
@@ -136,7 +140,7 @@ export const getVendorFinancialStatus = async (
             { $limit: 15 },
             {
               $lookup: {
-                from: "product",
+                from: "products",
                 localField: "items.productID",
                 foreignField: "_id",
                 as: "productData",
