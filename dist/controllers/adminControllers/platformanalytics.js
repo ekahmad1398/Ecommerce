@@ -26,7 +26,9 @@ export const getAdminDashboard = async (req, res, next) => {
                         pendingPayout: [
                             {
                                 $match: {
-                                    releasepayoutDate: { $gte: Date.now() },
+                                    payoutReleaseDate: { $gte: Date.now() },
+                                    isPaidOutToVendor: { $ne: true },
+                                    status: { $in: ["delivered"] },
                                 },
                             },
                             {
@@ -47,44 +49,7 @@ export const getAdminDashboard = async (req, res, next) => {
                                 },
                             },
                             { $sort: { "_id.year": -1, "_id.month": -1 } },
-                            { $limit: 12 },
-                        ],
-                        VendorPayout: [
-                            {
-                                $match: {
-                                    payoutReleaseDate: { $gte: "$payoutReleaseDate" },
-                                },
-                            },
-                            { $sort: { payoutReleaseDate: 1 } },
-                            {
-                                $limit: 5,
-                            },
-                            {
-                                $group: {
-                                    _id: "$vendorID",
-                                    VendorPayoutMoney: { $sum: "$vendorNetEarned" },
-                                },
-                            },
-                            {
-                                $lookup: {
-                                    from: "vendor",
-                                    localField: "_id",
-                                    foreignField: "_id",
-                                    as: "vendorData",
-                                },
-                            },
-                            {
-                                $unwind: "$vendorData",
-                            },
-                            {
-                                $project: {
-                                    companyName: 1,
-                                    Companyimage: 1,
-                                    VendorPayoutMoney: 1,
-                                    "$vendorData.userid": 1,
-                                    "$vendorData.country": 1,
-                                },
-                            },
+                            { $limit: 24 },
                         ],
                     },
                 },

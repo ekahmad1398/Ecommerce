@@ -48,7 +48,7 @@ const orderItemSchema = new mongoose.Schema(
 
 orderItemSchema.index({ status: 1, "items.productID": 1 });
 orderItemSchema.index(
-  { createAt: 1 },
+  { createdAt: 1 },
   { expireAfterSeconds: 3000, partialFilterExpression: { status: "pending" } },
 );
 orderItemSchema.index({ vendorID: -1, createdAt: -1, status: -1 });
