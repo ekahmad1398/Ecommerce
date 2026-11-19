@@ -41,7 +41,7 @@ export const getAdminDashboard = async (req, res, next) => {
                         pendingPayout: [
                             {
                                 $match: {
-                                    payoutReleaseDate: { $gte: Date.now() },
+                                    payoutReleaseDate: { $gte: new Date() },
                                     isPaidOutToVendor: { $ne: true },
                                     status: { $in: ["delivered"] },
                                 },
@@ -108,7 +108,6 @@ export const getAdminDashboard = async (req, res, next) => {
         const financialSummary = dashboardData?.[0]?.financialStatus ?? {
             totalGMV: 0,
             totalPlatformRevenue: 0,
-            averageOrderValue: 0,
         };
         const gmv = financialSummary.totalGMV;
         const PlatformRevenue = financialSummary.totalPlatformRevenue;
