@@ -13,6 +13,7 @@ import cookieParser from "cookie-parser";
 import rotateCookie from "./routes/rotateCookie.js";
 import cors from "cors";
 import env from "./config.js";
+import { getAdminDashboard } from "./controllers/adminControllers/platformanalytics.js";
 const allowedOrigins = ["http://100.97.73.17:3000", "https://marketly-five-rho.vercel.app"];
 
 const app = express();
@@ -50,5 +51,6 @@ app.use("/user", userRoutes);
 app.use("/admin", adminRoutes);
 app.use("/api", rotateCookie);
 app.use(checkoutRoute);
+app.get("/getAdminDashboard", getAdminDashboard);
 
 startServer();

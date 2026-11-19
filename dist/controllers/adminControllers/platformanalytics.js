@@ -1,8 +1,18 @@
 import orderItems from "../../models/orderItems.js";
 import user from "../../models/User.js";
 import vendor from "../../models/vendor.js";
+const RANGE_MONTHS = {
+    "3Months": 3,
+    "6Months": 6,
+    "12Months": 12,
+};
 export const getAdminDashboard = async (req, res, next) => {
     try {
+        const rangeParam = typeof req.query.range === "string" ? req.query.range : "";
+        const months = RANGE_MONTHS[rangeParam] ?? 12;
+        const now = new Date();
+        const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
+        const previousPeriodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (2 * months - 1), 1));
         const [dashboardData, totalCustomers, totalActiveVendors, pendingVendors] = await Promise.all([
             orderItems.aggregate([
                 {
@@ -13,6 +23,11 @@ export const getAdminDashboard = async (req, res, next) => {
                 {
                     $facet: {
                         financialStatus: [
+                            {
+                                $match: {
+                                    createdAt: { $gte: periodStart },
+                                },
+                            },
                             {
                                 $group: {
                                     _id: null,
@@ -40,6 +55,11 @@ export const getAdminDashboard = async (req, res, next) => {
                         ],
                         monthlyRevenueChart: [
                             {
+                                $match: {
+                                    createdAt: { $gte: periodStart },
+                                },
+                            },
+                            {
                                 $group: {
                                     _id: {
                                         year: { $year: "$createdAt" },
@@ -49,7 +69,28 @@ export const getAdminDashboard = async (req, res, next) => {
                                 },
                             },
                             { $sort: { "_id.year": -1, "_id.month": -1 } },
-                            { $limit: 24 },
+                            { $limit: months },
+                        ],
+                        previousMonthlyRevenueChart: [
+                            {
+                                $match: {
+                                    createdAt: {
+                                        $gte: previousPeriodStart,
+                                        $lt: periodStart,
+                                    },
+                                },
+                            },
+                            {
+                                $group: {
+                                    _id: {
+                                        year: { $year: "$createdAt" },
+                                        month: { $month: "$createdAt" },
+                                    },
+                                    monthlyEarning: { $sum: "$platformComissionCut" },
+                                },
+                            },
+                            { $sort: { "_id.year": -1, "_id.month": -1 } },
+                            { $limit: months },
                         ],
                     },
                 },
@@ -73,6 +114,7 @@ export const getAdminDashboard = async (req, res, next) => {
         const PlatformRevenue = financialSummary.totalPlatformRevenue;
         res.status(200).json({
             success: true,
+            range: rangeParam && RANGE_MONTHS[rangeParam] ? rangeParam : "12Months",
             summary: {
                 grossMerchandizeValue: gmv,
                 activeVendorCount: totalActiveVendors,
@@ -81,6 +123,7 @@ export const getAdminDashboard = async (req, res, next) => {
             },
             PendingVendors: pendingVendors,
             chartData: dashboardData?.[0]?.monthlyRevenueChart,
+            previousChartData: dashboardData?.[0]?.previousMonthlyRevenueChart,
             pendingPayout: dashboardData?.[0]?.pendingPayout,
         });
     }
