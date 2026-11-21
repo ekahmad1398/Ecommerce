@@ -112,7 +112,7 @@ export const getVendorBalanceLedger = async (req, res, next) => {
                         { $limit: limit },
                         {
                             $lookup: {
-                                from: "vendor",
+                                from: "vendors",
                                 localField: "_id",
                                 foreignField: "_id",
                                 as: "VendorDetails",

@@ -13,6 +13,7 @@ import cookieParser from "cookie-parser";
 import rotateCookie from "./routes/rotateCookie.js";
 import cors from "cors";
 import env from "./config.js";
+import { GetProducts } from "./controllers/adminControllers/products.js";
 const allowedOrigins = ["http://100.97.73.17:3000", "https://marketly-five-rho.vercel.app"];
 
 const app = express();
@@ -48,6 +49,7 @@ app.use("/vendor", vendorRoutes);
 app.use("/authentication", AuthRoutes);
 app.use("/user", userRoutes);
 app.use("/admin", adminRoutes);
+app.get("/GetProducts", GetProducts);
 app.use("/api", rotateCookie);
 app.use(checkoutRoute);
 

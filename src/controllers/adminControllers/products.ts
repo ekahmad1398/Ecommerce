@@ -1,4 +1,4 @@
-import productSchema from "../../models/User.js";
+import productSchema from "../../models/Product.js";
 import type { NextFunction, Request, Response } from "express";
 
 export const GetProducts = async (
@@ -7,72 +7,71 @@ export const GetProducts = async (
   next: NextFunction,
 ) => {
   try {
-    const matchstage: Record<string, unknown> = {};
-    const { isActive, search } = req.query;
-    if (isActive) {
-      matchstage.isActive = isActive;
-    }
-    if (search) {
-      matchstage.search = search;
+    const { isActive, search, status } = req.query;
+
+    const matchStage: Record<string, unknown> = {
+      isDeleted: { $ne: true },
+    };
+
+    if (typeof search === "string" && search.trim()) {
+      matchStage.name = { $regex: search.trim(), $options: "i" };
     }
 
-    const limit = Math.min(Math.max(Number(req.query.limit || 10)), 50);
-    const totalPages = await productSchema.countDocuments();
+    const statusFilter =
+      typeof status === "string" && status.trim()
+        ? status.trim()
+        : isActive === "true"
+          ? "active"
+          : isActive === "false"
+            ? "inactive"
+            : null;
+    if (statusFilter) {
+      matchStage.status = statusFilter;
+    }
+
+    const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 50);
+    const totalProducts = await productSchema.countDocuments(matchStage);
+    const totalPages = Math.max(1, Math.ceil(totalProducts / limit));
     const page = Math.min(Math.max(Number(req.query.page) || 1, 1), totalPages);
     const skip = (page - 1) * limit;
 
-    const productAggregate = await productSchema.aggregate([
-      { $match: matchstage },
-
+    const products = await productSchema.aggregate([
+      { $match: matchStage },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
       {
-        $facet: {
-          vendorData: [
-            ...(search
-              ? [
-                  {
-                    $match: { name: { $regex: search, $options: "i" } },
-                  },
-                ]
-              : []),
-
-            { $sort: { createdAt: -1 } },
-            { $skip: skip },
-            { $limit: limit },
-            {
-              $lookup: {
-                from: "vendor",
-                localField: "vendorId",
-                foreignField: "_id",
-                as: "VendorInfo",
-              },
-            },
-            {
-              $unwind: "$VendorInfo",
-            },
-
-            {
-              $project: {
-                name: 1,
-                price: 1,
-                stock: 1,
-                isActive: 1,
-                createdAt: 1,
-                vendorId: "$vendorInfo._id",
-                "vendor.businessName": "$vendorInfo.companyName",
-                PhoneNumber: "$vendorInfo.mobilenumber",
-                images: 1,
-              },
-            },
-          ],
+        $lookup: {
+          from: "vendors",
+          localField: "vendorId",
+          foreignField: "_id",
+          as: "VendorInfo",
+        },
+      },
+      {
+        $unwind: { path: "$VendorInfo", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          price: 1,
+          stock: 1,
+          status: 1,
+          createdAt: 1,
+          vendorId: "$vendorId",
+          businessName: "$VendorInfo.companyName",
+          PhoneNumber: "$VendorInfo.mobilenumber",
+          images: 1,
         },
       },
     ]);
-    const products = productAggregate[0].vendorData;
-    const totalProducts = productAggregate[0].metaData[0].total;
 
     res.status(200).json({
+      success: true,
       totalProducts,
       totalPages,
+      currentPage: page,
       products,
     });
   } catch (error) {
