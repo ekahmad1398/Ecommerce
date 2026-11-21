@@ -7,13 +7,34 @@ const RANGE_MONTHS = {
     "6Months": 6,
     "12Months": 12,
 };
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DAILY_RANGE_DAYS = 30;
 export const getAdminDashboard = async (req, res, next) => {
     try {
         const rangeParam = typeof req.query.range === "string" ? req.query.range : "";
         const months = RANGE_MONTHS[rangeParam] ?? 12;
+        const isDailyRange = months === 1;
         const now = new Date();
-        const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
-        const previousPeriodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (2 * months - 1), 1));
+        const periodStart = isDailyRange
+            ? new Date(now.getTime() - DAILY_RANGE_DAYS * DAY_MS)
+            : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
+        const previousPeriodStart = isDailyRange
+            ? new Date(now.getTime() - DAILY_RANGE_DAYS * 2 * DAY_MS)
+            : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (2 * months - 1), 1));
+        const chartGroupId = isDailyRange
+            ? {
+                year: { $year: "$createdAt" },
+                month: { $month: "$createdAt" },
+                day: { $dayOfMonth: "$createdAt" },
+            }
+            : {
+                year: { $year: "$createdAt" },
+                month: { $month: "$createdAt" },
+            };
+        const chartLimit = isDailyRange ? DAILY_RANGE_DAYS + 1 : months;
+        const chartSort = isDailyRange
+            ? { "_id.year": -1, "_id.month": -1, "_id.day": -1 }
+            : { "_id.year": -1, "_id.month": -1 };
         const [dashboardData, totalCustomers, totalActiveVendors, pendingVendors] = await Promise.all([
             orderItems.aggregate([
                 {
@@ -62,15 +83,12 @@ export const getAdminDashboard = async (req, res, next) => {
                             },
                             {
                                 $group: {
-                                    _id: {
-                                        year: { $year: "$createdAt" },
-                                        month: { $month: "$createdAt" },
-                                    },
+                                    _id: chartGroupId,
                                     monthlyEarning: { $sum: "$platformComissionCut" },
                                 },
                             },
-                            { $sort: { "_id.year": -1, "_id.month": -1 } },
-                            { $limit: months },
+                            { $sort: chartSort },
+                            { $limit: chartLimit },
                         ],
                         previousMonthlyRevenueChart: [
                             {
@@ -83,15 +101,12 @@ export const getAdminDashboard = async (req, res, next) => {
                             },
                             {
                                 $group: {
-                                    _id: {
-                                        year: { $year: "$createdAt" },
-                                        month: { $month: "$createdAt" },
-                                    },
+                                    _id: chartGroupId,
                                     monthlyEarning: { $sum: "$platformComissionCut" },
                                 },
                             },
-                            { $sort: { "_id.year": -1, "_id.month": -1 } },
-                            { $limit: months },
+                            { $sort: chartSort },
+                            { $limit: chartLimit },
                         ],
                     },
                 },
