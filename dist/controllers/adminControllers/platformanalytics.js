@@ -105,7 +105,7 @@ export const getAdminDashboard = async (req, res, next) => {
                 .sort({ createdAt: 1 })
                 .limit(5),
         ]);
-        const financialSummary = dashboardData?.[0]?.financialStatus ?? {
+        const financialSummary = dashboardData?.[0]?.financialStatus?.[0] ?? {
             totalGMV: 0,
             totalPlatformRevenue: 0,
         };

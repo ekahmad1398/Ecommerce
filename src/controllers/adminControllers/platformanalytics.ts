@@ -17,8 +17,8 @@ interface financialStatus {
 }
 
 interface aggregateResult {
-  financialStatus: financialStatus;
-  pendingPayout: { PendingPayoutMoney: number };
+  financialStatus: financialStatus[];
+  pendingPayout: { PendingPayoutMoney: number }[];
   monthlyRevenueChart: monthlyRevenueChart[];
   previousMonthlyRevenueChart: monthlyRevenueChart[];
 }
@@ -139,7 +139,7 @@ export const getAdminDashboard = async (
           .limit(5),
       ]);
 
-    const financialSummary = dashboardData?.[0]?.financialStatus ?? {
+    const financialSummary = dashboardData?.[0]?.financialStatus?.[0] ?? {
       totalGMV: 0,
       totalPlatformRevenue: 0,
     };
