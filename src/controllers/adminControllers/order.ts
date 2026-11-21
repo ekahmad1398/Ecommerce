@@ -148,6 +148,7 @@ export const getVendorBalanceLedger = async (
                 grossSales: "$totalGrossSales",
                 vendorPayoutBalance: "$totalVendorNetEarning",
                 platfromRevenue: "$totalPlatfromCommision",
+                orderCount: "$VendorOrderCount",
               },
             },
           ],
