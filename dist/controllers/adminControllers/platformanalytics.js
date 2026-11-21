@@ -2,6 +2,7 @@ import orderItems from "../../models/orderItems.js";
 import user from "../../models/User.js";
 import vendor from "../../models/vendor.js";
 const RANGE_MONTHS = {
+    "1Month": 1,
     "3Months": 3,
     "6Months": 6,
     "12Months": 12,

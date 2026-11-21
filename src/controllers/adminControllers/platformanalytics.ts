@@ -24,6 +24,7 @@ interface aggregateResult {
 }
 
 const RANGE_MONTHS: Record<string, number> = {
+  "1Month": 1,
   "3Months": 3,
   "6Months": 6,
   "12Months": 12,
